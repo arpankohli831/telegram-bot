@@ -10,10 +10,12 @@ from telegram.ext import (
     filters,
 )
 
-TOKEN = os.getenv("8769768942:AAFjWjZPI0weRZXkavJLD8kiyjSZVSKFB0s")
-ADMIN_ID = 7853887140  # 🔴 PUT YOUR TELEGRAM ID HERE
+# ================== CONFIG ================== #
 
-# ---------------- DATABASE ---------------- #
+TOKEN = os.getenv("TOKEN")  # Set this in Railway Variables
+ADMIN_ID = 7853887140  # 🔴 Replace with your real Telegram numeric ID
+
+# ================== DATABASE ================== #
 
 conn = sqlite3.connect("bot.db", check_same_thread=False)
 cursor = conn.cursor()
@@ -35,7 +37,7 @@ CREATE TABLE IF NOT EXISTS stock (
 
 conn.commit()
 
-# ---------------- PRICES ---------------- #
+# ================== PRICES ================== #
 
 PRICES = {
     "facebook": 25,
@@ -43,7 +45,7 @@ PRICES = {
     "twitter": 25
 }
 
-# ---------------- FUNCTIONS ---------------- #
+# ================== DATABASE FUNCTIONS ================== #
 
 def add_user(user_id):
     cursor.execute("INSERT OR IGNORE INTO users (user_id) VALUES (?)", (user_id,))
@@ -79,7 +81,7 @@ def get_stock_count(account_type):
     cursor.execute("SELECT COUNT(*) FROM stock WHERE account_type=?", (account_type,))
     return cursor.fetchone()[0]
 
-# ---------------- START ---------------- #
+# ================== START COMMAND ================== #
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
@@ -103,7 +105,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=InlineKeyboardMarkup(keyboard),
     )
 
-# ---------------- BUTTON HANDLER ---------------- #
+# ================== BUTTON HANDLER ================== #
 
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -128,14 +130,14 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif query.data == "add_funds":
         await query.edit_message_text(
             "💰 Send payment to UPI ID:\n\n"
-            "7908684711@fam"
-            "After payment send screenshot here."
-     "@ARPANMODX"   )
+            "7908684711@fam\n\n"
+            "After payment send screenshot here.\n"
+            "Admin: @ARPANMODX"
+        )
 
     elif query.data.startswith("buy_"):
         account_type = query.data.split("_")[1]
         price = PRICES.get(account_type, 100)
-
         balance = get_balance(user_id)
 
         if balance < price:
@@ -158,23 +160,31 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🔐 Your Account:\n{account}"
         )
 
-# ---------------- SCREENSHOT ---------------- #
+# ================== SCREENSHOT HANDLER ================== #
 
 async def screenshot_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.message.photo:
         user_id = update.effective_user.id
+
         await context.bot.send_message(
-            ADMIN_ID,
-            f"💰 Payment Screenshot Received\n\n"
-            f"User ID: {user_id}\n\n"
-            f"Approve with:\n/approve {user_id} 100"
+            chat_id=ADMIN_ID,
+            text=(
+                f"💰 Payment Screenshot Received\n\n"
+                f"User ID: {user_id}\n\n"
+                f"Approve with:\n/approve {user_id} 100"
+            )
         )
+
         await update.message.reply_text("✅ Screenshot sent to admin.")
 
-# ---------------- ADMIN COMMANDS ---------------- #
+# ================== ADMIN COMMANDS ================== #
 
 async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
+        return
+
+    if len(context.args) < 2:
+        await update.message.reply_text("Usage: /approve user_id amount")
         return
 
     user_id = int(context.args[0])
@@ -184,12 +194,16 @@ async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("✅ Balance Added Successfully.")
     await context.bot.send_message(
-        user_id,
-        f"💰 ₹{amount} added to your balance!"
+        chat_id=user_id,
+        text=f"💰 ₹{amount} added to your balance!"
     )
 
 async def addstock(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
+        return
+
+    if len(context.args) < 2:
+        await update.message.reply_text("Usage: /addstock type email:pass")
         return
 
     account_type = context.args[0]
@@ -199,7 +213,7 @@ async def addstock(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("✅ Stock Added Successfully.")
 
-# ---------------- MAIN ---------------- #
+# ================== MAIN ================== #
 
 app = ApplicationBuilder().token(TOKEN).build()
 
