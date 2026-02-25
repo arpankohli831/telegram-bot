@@ -11,7 +11,7 @@ from telegram.ext import (
 )
 
 TOKEN = os.getenv("8769768942:AAFjWjZPI0weRZXkavJLD8kiyjSZVSKFB0s")
-ADMIN_ID = @ARPANMODX  # 🔴 PUT YOUR TELEGRAM ID HERE
+ADMIN_ID = 7853887140  # 🔴 PUT YOUR TELEGRAM ID HERE
 
 # ---------------- DATABASE ---------------- #
 
