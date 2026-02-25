@@ -12,7 +12,7 @@ from telegram.ext import (
 
 # ================== CONFIG ================== #
 
-TOKEN = os.getenv("8769768942:AAFjWjZPI0weRZXkavJLD8kiyjSZVSKFB0s")  # Set this in Railway Variables
+TOKEN = os.getenv("8769768942:AAE9my7p64TxDgi4vGbh-maJQVDVE9EVxjA")  # Set this in Railway Variables
 print("Loaded TOKEN:", TOKEN)
 ADMIN_ID = 7853887140  # 🔴 Replace with your real Telegram numeric ID
 
