@@ -261,7 +261,13 @@ async def removestock_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     stock_type = context.args[0].lower()
     stock_data = " ".join(context.args[1:])
-    cur.execute("DELETE FROM stock WHERE type=? AND data=? LIMIT 1", (stock_type, stock_data))
+    # ❌ Original faulty line: cur.execute("DELETE FROM stock WHERE type=? AND data=? LIMIT 1", (stock_type, stock_data))
+    cur.execute("SELECT id FROM stock WHERE type=? AND data=? LIMIT 1", (stock_type, stock_data))
+    row = cur.fetchone()
+    if not row:
+        await update.message.reply_text("❌ Stock not found")
+        return
+    cur.execute("DELETE FROM stock WHERE id=?", (row[0],))
     conn.commit()
     await update.message.reply_text(f"✅ Stock removed: {stock_type} → {stock_data}")
 
@@ -281,6 +287,33 @@ async def stock_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Guest: {stock_count('guest')}"
     )
 
+# ================= NEW FEATURES ================= #
+# 1️⃣ Redeem promo code
+async def redeem(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    if not context.args:
+        await update.message.reply_text("Usage: /redeem <CODE>")
+        return
+    code = context.args[0].upper()
+    cur.execute("SELECT amount, max_uses, used FROM promocodes WHERE code=?", (code,))
+    row = cur.fetchone()
+    if not row:
+        await update.message.reply_text("❌ Invalid promo code")
+        return
+    amount, max_uses, used = row
+    if used >= max_uses:
+        await update.message.reply_text("❌ Promo code expired")
+        return
+    cur.execute("SELECT 1 FROM promo_used WHERE user_id=? AND code=?", (uid, code))
+    if cur.fetchone():
+        await update.message.reply_text("❌ You have already used this promo code")
+        return
+    add_balance(uid, amount)
+    cur.execute("UPDATE promocodes SET used=used+1 WHERE code=?", (code,))
+    cur.execute("INSERT INTO promo_used VALUES (?,?)", (uid, code))
+    conn.commit()
+    await update.message.reply_text(f"✅ Promo applied! ₹{amount} added to your balance")
+
 # ================= RUN ================= #
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 
@@ -294,6 +327,9 @@ app.add_handler(CommandHandler("addstock", addstock_cmd))
 app.add_handler(CommandHandler("removestock", removestock_cmd))
 app.add_handler(CommandHandler("approve", approve))
 app.add_handler(CommandHandler("stockstats", stock_stats))
+
+# New command: redeem promo
+app.add_handler(CommandHandler("redeem", redeem))
 
 # Message Handler
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
