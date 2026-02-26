@@ -1,14 +1,13 @@
 import sqlite3
+import os
+import sys
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import (
-    ApplicationBuilder, CommandHandler,
-    MessageHandler, ContextTypes, filters
-)
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 from keep_alive import keep_alive
 keep_alive()
 
 # ================= CONFIG ================= #
-BOT_TOKEN = "8769768942:AAE9my7p64TxDgi4vGbh-maJQVDVE9EVxjA"
+BOT_TOKEN = "YOUR_BOT_TOKEN"
 ADMIN_ID = 7853887140
 OWNER_USERNAME = "@ARPANMODX"
 UPI_ID = "7908684711@fam"
@@ -52,6 +51,7 @@ CREATE TABLE IF NOT EXISTS promo_used (
     UNIQUE(user_id, code)
 )
 """)
+
 conn.commit()
 
 # ================= PRICES ================= #
@@ -109,12 +109,13 @@ def referral_count(uid):
 def main_keyboard():
     return ReplyKeyboardMarkup(
         [
-            ["➕ ADD FUNDS"],
-            ["📘 FACEBOOK ₹25/", "📧 GOOGLE ₹25/"],
-            ["🐦 TWITTER ₹25/", "🎮 GUEST ₹20/"],
-            ["💰 MY BALANCE", "📦 STOCK"],
-            ["🎁 PROMO CODE", "👥 REFER & EARN"],
-            ["⭐ PAID PUSH", "👤 CONTACT OWNER"]
+            ["🟢 ADD FUNDS"],
+            ["🔵 FACEBOOK ₹25", "🔵 GOOGLE ₹25"],
+            ["🔵 TWITTER ₹25", "🔵 GUEST ₹20"],
+            ["🟡 STOCK", "🟡 MY BALANCE"],
+            ["🟣 PROMO CODE", "🟣 REFER & EARN"],
+            ["🔴 PAID PUSH"],
+            ["⚫ CONTACT OWNER"]
         ],
         resize_keyboard=True
     )
@@ -130,15 +131,34 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
 
-# ================= MENU HANDLER ================= #
+# ================= COMMANDS ================= #
+async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    cur.execute("SELECT COUNT(*) FROM users")
+    users = cur.fetchone()[0]
+    cur.execute("SELECT COUNT(*) FROM stock")
+    stock = cur.fetchone()[0]
+    await update.message.reply_text(f"📊 BOT STATS\n\n👥 Users: {users}\n📦 Stock: {stock}")
+
+async def refer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    link = f"https://t.me/Arpan_8_level_id_sell_bot?start={uid}"
+    await update.message.reply_text(
+        f"👥 REFER & EARN\n\n🔗 {link}\n\nEarn ₹{REF_BONUS} per referral\nTotal Referrals: {referral_count(uid)}"
+    )
+
+async def update_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("♻️ Restarting bot...")
+    os.execl(sys.executable, sys.executable, *sys.argv)
+
+# ================= MENU ================= #
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     uid = update.effective_user.id
 
-    if text == "💰 MY BALANCE":
-        await update.message.reply_text(f"💵 Balance: ₹{balance(uid)}")
+    if text == "🟡 MY BALANCE":
+        await update.message.reply_text(f"💰 Balance: ₹{balance(uid)}")
 
-    elif text == "📦 STOCK":
+    elif text == "🟡 STOCK":
         await update.message.reply_text(
             f"📦 STOCK\n\n"
             f"Facebook: {stock_count('facebook')}\n"
@@ -147,79 +167,50 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Guest: {stock_count('guest')}"
         )
 
-    elif text == "➕ ADD FUNDS":
+    elif text == "🟢 ADD FUNDS":
         await update.message.reply_photo(
             photo=open(QR_IMAGE_PATH, "rb"),
             caption=f"💰 Scan & Pay\n\nUPI: {UPI_ID}\nSend UTR to {OWNER_USERNAME}"
         )
 
-    elif text in ["📘 FACEBOOK ₹25/", "📧 GOOGLE ₹25/", "🐦 TWITTER ₹25/", "🎮 GUEST ₹20/"]:
+    elif text in ["🔵 FACEBOOK ₹25", "🔵 GOOGLE ₹25", "🔵 TWITTER ₹25", "🔵 GUEST ₹20"]:
         t = ("facebook" if "FACEBOOK" in text else
              "google" if "GOOGLE" in text else
              "twitter" if "TWITTER" in text else
              "guest")
+
         if balance(uid) < PRICES[t]:
             await update.message.reply_text("❌ Not enough balance")
             return
+
         acc = get_stock(t)
         if not acc:
             await update.message.reply_text("❌ Out of stock")
             return
+
         deduct(uid, PRICES[t])
-        await update.message.reply_text(f"✅ PURCHASED\n\n{acc}\n💰 Remaining Balance: ₹{balance(uid)}")
+        await update.message.reply_text(f"✅ PURCHASED\n\n{acc}\nRemaining Balance: ₹{balance(uid)}")
 
-    elif text == "👥 REFER & EARN":
-        link = f"https://t.me/Arpan_8_level_id_sell_bot?start={uid}"
-        await update.message.reply_text(
-            f"👥 Refer & Earn\n\n{link}\nEarn ₹{REF_BONUS} per referral"
-        )
+    elif text == "🟣 REFER & EARN":
+        await refer_command(update, context)
 
-    elif text == "🎁 PROMO CODE":
-        await update.message.reply_text("✏️ Send promo code:")
-
-    elif text == "⭐ PAID PUSH":
+    elif text == "🔴 PAID PUSH":
         kb = [
             [InlineKeyboardButton("⭐ 1 STAR — ₹2", url="https://t.me/ARPANMODX")],
             [InlineKeyboardButton("⭐⭐ 10 STAR — ₹20", url="https://t.me/ARPANMODX")],
             [InlineKeyboardButton("⭐⭐⭐ 25 STAR — ₹50", url="https://t.me/ARPANMODX")]
         ]
         await update.message.reply_text(
-            "⭐ PAID PUSH PRICES\n\n"
-            "Contact Owner: @ARPANMODX\n\nClick a button below to message the owner and buy:",
+            "⭐ PAID PUSH PRICES\n\nContact Owner: @ARPANMODX",
             reply_markup=InlineKeyboardMarkup(kb)
         )
 
-    elif text == "👤 CONTACT OWNER":
-        await update.message.reply_text(
-            "👤 Contact Owner\n\n"
-            "Username: @ARPANMODX\n"
-            "📩 Click to message: https://t.me/ARPANMODX"
-        )
+    elif text == "⚫ CONTACT OWNER":
+        await update.message.reply_text(f"Contact Owner: {OWNER_USERNAME}")
 
-# ================= PROMO REDEEM ================= #
-async def promo_redeem(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    code = update.message.text.strip()
-    uid = update.effective_user.id
-
-    cur.execute("SELECT amount,max_uses,used FROM promocodes WHERE code=?", (code,))
-    promo = cur.fetchone()
-    if not promo:
-        return
-    cur.execute("SELECT 1 FROM promo_used WHERE user_id=? AND code=?", (uid, code))
-    if cur.fetchone():
-        await update.message.reply_text("❌ Promo already used")
-        return
-    amount, max_uses, used = promo
-    if used >= max_uses:
-        await update.message.reply_text("❌ Promo expired")
-        return
-
-    cur.execute("INSERT INTO promo_used VALUES (?,?)", (uid, code))
-    cur.execute("UPDATE promocodes SET used=used+1 WHERE code=?", (code,))
-    add_balance(uid, amount)
-    conn.commit()
-
-    await update.message.reply_text(f"✅ Promo applied\n₹{amount} added to your balance!")
+# ================= MESSAGE HANDLER ================= #
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await menu(update, context)
 
 # ================= ADMIN ================= #
 async def addpromo(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -243,22 +234,13 @@ async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     add_balance(uid, amt)
     await update.message.reply_text("✅ Balance added")
 
-# ================= FIX HANDLER ================= #
-async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    text = update.message.text
-    menu_buttons = [
-        "💰 MY BALANCE", "📦 STOCK", "➕ ADD FUNDS",
-        "📘 FACEBOOK ₹25/", "📧 GOOGLE ₹25/", "🐦 TWITTER ₹25/", "🎮 GUEST ₹20/",
-        "🎁 PROMO CODE", "👥 REFER & EARN", "⭐ PAID PUSH", "👤 CONTACT OWNER"
-    ]
-    if text in menu_buttons:
-        await menu(update, context)
-    else:
-        await promo_redeem(update, context)
-
 # ================= RUN ================= #
 app = ApplicationBuilder().token(BOT_TOKEN).build()
+
 app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("stats", stats))
+app.add_handler(CommandHandler("refer", refer_command))
+app.add_handler(CommandHandler("update", update_bot))
 app.add_handler(CommandHandler("addpromo", addpromo))
 app.add_handler(CommandHandler("addstock", addstock_cmd))
 app.add_handler(CommandHandler("approve", approve))
