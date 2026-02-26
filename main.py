@@ -6,10 +6,11 @@ from telegram.ext import (
 )
 from keep_alive import keep_alive
 keep_alive()
+
 # ================= CONFIG ================= #
 BOT_TOKEN = "8769768942:AAE9my7p64TxDgi4vGbh-maJQVDVE9EVxjA"
 ADMIN_ID = 7853887140
-OWNER_USERNAME = "@ARPANMODX"  # Owner username everywhere
+OWNER_USERNAME = "@ARPANMODX"
 UPI_ID = "7908684711@fam"
 QR_IMAGE_PATH = "upi_qr.png"
 REF_BONUS = 1
@@ -124,7 +125,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ref = int(context.args[0]) if context.args and context.args[0].isdigit() else None
     add_user(uid, ref)
     await update.message.reply_text(
-        f"🔥 *WELCOME TO 8 LEVEL ID SELLER BOT*\n\nChoose option 👇",
+        "🔥 *WELCOME TO 8 LEVEL ID SELLER BOT*\n\nChoose option 👇",
         reply_markup=main_keyboard(),
         parse_mode="Markdown"
     )
@@ -149,10 +150,10 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "➕ ADD FUNDS":
         await update.message.reply_photo(
             photo=open(QR_IMAGE_PATH, "rb"),
-          caption=f"💰 Scan & Pay\n\nUPI: 7908684711@fam\nSend UTR to @ARPANMODX"
+            caption=f"💰 Scan & Pay\n\nUPI: {UPI_ID}\nSend UTR to {OWNER_USERNAME}"
         )
 
-    elif text in ["📘 FACEBOOK ID", "📧 GOOGLE ID", "🐦 TWITTER ACCOUNT", "🎮 GUEST ID"]:
+    elif text in ["📘 FACEBOOK ₹25/", "📧 GOOGLE ₹25/", "🐦 TWITTER ₹25/", "🎮 GUEST ₹20/"]:
         t = ("facebook" if "FACEBOOK" in text else
              "google" if "GOOGLE" in text else
              "twitter" if "TWITTER" in text else
@@ -177,23 +178,23 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("✏️ Send promo code:")
 
     elif text == "⭐ PAID PUSH":
-    kb = [
-        [InlineKeyboardButton("⭐ 1 STAR — ₹2", url="https://t.me/ARPANMODX")],
-        [InlineKeyboardButton("⭐⭐ 10 STAR — ₹20", url="https://t.me/ARPANMODX")],
-        [InlineKeyboardButton("⭐⭐⭐ 25 STAR — ₹50", url="https://t.me/ARPANMODX")]
-    ]
-    await update.message.reply_text(
-        "⭐ PAID PUSH PRICES\n\n"
-        "Contact Owner: @ARPANMODX\n\nClick a button below to message the owner and buy:",
-        reply_markup=InlineKeyboardMarkup(kb)
-    )
+        kb = [
+            [InlineKeyboardButton("⭐ 1 STAR — ₹2", url="https://t.me/ARPANMODX")],
+            [InlineKeyboardButton("⭐⭐ 10 STAR — ₹20", url="https://t.me/ARPANMODX")],
+            [InlineKeyboardButton("⭐⭐⭐ 25 STAR — ₹50", url="https://t.me/ARPANMODX")]
+        ]
+        await update.message.reply_text(
+            "⭐ PAID PUSH PRICES\n\n"
+            "Contact Owner: @ARPANMODX\n\nClick a button below to message the owner and buy:",
+            reply_markup=InlineKeyboardMarkup(kb)
+        )
 
     elif text == "👤 CONTACT OWNER":
-    await update.message.reply_text(
-        "👤 Contact Owner\n\n"
-        "Username: @ARPANMODX\n"
-        "📩 Click to message: https://t.me/ARPANMODX"
-    )
+        await update.message.reply_text(
+            "👤 Contact Owner\n\n"
+            "Username: @ARPANMODX\n"
+            "📩 Click to message: https://t.me/ARPANMODX"
+        )
 
 # ================= PROMO REDEEM ================= #
 async def promo_redeem(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -242,14 +243,26 @@ async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     add_balance(uid, amt)
     await update.message.reply_text("✅ Balance added")
 
+# ================= FIX HANDLER ================= #
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    menu_buttons = [
+        "💰 MY BALANCE", "📦 STOCK", "➕ ADD FUNDS",
+        "📘 FACEBOOK ₹25/", "📧 GOOGLE ₹25/", "🐦 TWITTER ₹25/", "🎮 GUEST ₹20/",
+        "🎁 PROMO CODE", "👥 REFER & EARN", "⭐ PAID PUSH", "👤 CONTACT OWNER"
+    ]
+    if text in menu_buttons:
+        await menu(update, context)
+    else:
+        await promo_redeem(update, context)
+
 # ================= RUN ================= #
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("addpromo", addpromo))
 app.add_handler(CommandHandler("addstock", addstock_cmd))
 app.add_handler(CommandHandler("approve", approve))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, promo_redeem))
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
 print("Bot running...")
 app.run_polling()
