@@ -149,7 +149,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "➕ ADD FUNDS":
         await update.message.reply_photo(
             photo=open(QR_IMAGE_PATH, "rb"),
-            caption=f"💰 Scan & Pay\n\nUPI: {UPI_ID}\nSend UTR to {OWNER_USERNAME}"
+          caption=f"💰 Scan & Pay\n\nUPI: 7908684711@fam\nSend UTR to @ARPANMODX"
         )
 
     elif text in ["📘 FACEBOOK ID", "📧 GOOGLE ID", "🐦 TWITTER ACCOUNT", "🎮 GUEST ID"]:
@@ -177,11 +177,16 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("✏️ Send promo code:")
 
     elif text == "⭐ PAID PUSH":
-        kb = [
-            [InlineKeyboardButton("⭐ 1 STAR — ₹2", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
-            [InlineKeyboardButton("⭐⭐ 10 STAR — ₹20", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
-            [InlineKeyboardButton("⭐⭐⭐ 25 STAR — ₹50", url=f"https://t.me/{OWNER_USERNAME[1:]}")]
-        ]
+    kb = [
+        [InlineKeyboardButton("⭐ 1 STAR — ₹2", url="https://t.me/ARPANMODX")],
+        [InlineKeyboardButton("⭐⭐ 10 STAR — ₹20", url="https://t.me/ARPANMODX")],
+        [InlineKeyboardButton("⭐⭐⭐ 25 STAR — ₹50", url="https://t.me/ARPANMODX")]
+    ]
+    await update.message.reply_text(
+        "⭐ PAID PUSH PRICES\n\n"
+        "Contact Owner: @ARPANMODX\n\nClick a button below to message the owner and buy:",
+        reply_markup=InlineKeyboardMarkup(kb)
+    )
 
     elif text == "👤 CONTACT OWNER":
     await update.message.reply_text(
