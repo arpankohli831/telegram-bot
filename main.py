@@ -7,7 +7,7 @@ from keep_alive import keep_alive
 keep_alive()
 
 # ================= CONFIG ================= #
-BOT_TOKEN = "YOUR_BOT_TOKEN"
+BOT_TOKEN = "8769768942:AAE9my7p64TxDgi4vGbh-maJQVDVE9EVxjA"
 ADMIN_ID = 7853887140
 OWNER_USERNAME = "@ARPANMODX"
 UPI_ID = "7908684711@fam"
