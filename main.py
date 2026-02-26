@@ -7,17 +7,18 @@ from keep_alive import keep_alive
 keep_alive()
 
 # ================= CONFIG ================= #
-BOT_TOKEN = "8769768942:AAE9my7p64TxDgi4vGbh-maJQVDVE9EVxjA"
+BOT_TOKEN = "8769768942:AAE9my7p64TxDgi4vGbh-maJQVDVE9EVxA"
 ADMIN_ID = 7853887140
 OWNER_USERNAME = "@ARPANMODX"
 UPI_ID = "7908684711@fam"
 QR_IMAGE_PATH = "upi_qr.png"
-REF_BONUS = 1
+REF_BONUS = 1  # ₹1 per referral
 
 # ================= DATABASE ================= #
 conn = sqlite3.connect("bot.db", check_same_thread=False)
 cur = conn.cursor()
 
+# Users table
 cur.execute("""
 CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY,
@@ -27,6 +28,7 @@ CREATE TABLE IF NOT EXISTS users (
 )
 """)
 
+# Stock table
 cur.execute("""
 CREATE TABLE IF NOT EXISTS stock (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,6 +37,7 @@ CREATE TABLE IF NOT EXISTS stock (
 )
 """)
 
+# Promo codes
 cur.execute("""
 CREATE TABLE IF NOT EXISTS promocodes (
     code TEXT PRIMARY KEY,
@@ -44,11 +47,21 @@ CREATE TABLE IF NOT EXISTS promocodes (
 )
 """)
 
+# Track used promos
 cur.execute("""
 CREATE TABLE IF NOT EXISTS promo_used (
     user_id INTEGER,
     code TEXT,
     UNIQUE(user_id, code)
+)
+""")
+
+# Track referrals to prevent duplicate referral bonuses
+cur.execute("""
+CREATE TABLE IF NOT EXISTS referrals (
+    referrer INTEGER,
+    referred INTEGER,
+    UNIQUE(referrer, referred)
 )
 """)
 
@@ -68,8 +81,11 @@ def add_user(uid, ref=None):
     if cur.fetchone():
         return
     cur.execute("INSERT INTO users VALUES (?,?,?,?)", (uid, 0, ref, 0))
-    if ref:
-        cur.execute("UPDATE users SET balance=balance+?, referred_count=referred_count+1 WHERE user_id=?", (REF_BONUS, ref))
+    if ref and ref != uid:
+        cur.execute("SELECT 1 FROM referrals WHERE referrer=? AND referred=?", (ref, uid))
+        if not cur.fetchone():
+            cur.execute("UPDATE users SET balance=balance+?, referred_count=referred_count+1 WHERE user_id=?", (REF_BONUS, ref))
+            cur.execute("INSERT INTO referrals VALUES (?,?)", (ref, uid))
     conn.commit()
 
 def balance(uid):
@@ -114,7 +130,7 @@ def main_keyboard():
             ["🔵 TWITTER ₹25", "🔵 GUEST ₹20"],
             ["🟡 STOCK", "🟡 MY BALANCE"],
             ["🟣 PROMO CODE", "🟣 REFER & EARN"],
-            ["🔴 PAID PUSH"],
+            ["⭐ PAID PUSH⭐", "🔗 CHANNEL"],
             ["⚫ CONTACT OWNER"]
         ],
         resize_keyboard=True
@@ -126,7 +142,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ref = int(context.args[0]) if context.args and context.args[0].isdigit() else None
     add_user(uid, ref)
     await update.message.reply_text(
-        "🔥 *WELCOME TO 8 LEVEL ID SELLER BOT*\n\nChoose option 👇",
+        f"🔥 *WELCOME TO 8 LEVEL ID SELLER BOT*\n\nChoose option 👇",
         reply_markup=main_keyboard(),
         parse_mode="Markdown"
     )
@@ -194,19 +210,29 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "🟣 REFER & EARN":
         await refer_command(update, context)
 
-    elif text == "🔴 PAID PUSH":
+    elif text == "⭐ PAID PUSH⭐":
         kb = [
-            [InlineKeyboardButton("⭐ 1 STAR — ₹2", url="https://t.me/ARPANMODX")],
-            [InlineKeyboardButton("⭐⭐ 10 STAR — ₹20", url="https://t.me/ARPANMODX")],
-            [InlineKeyboardButton("⭐⭐⭐ 25 STAR — ₹50", url="https://t.me/ARPANMODX")]
+            [InlineKeyboardButton("⭐ 1 STAR — ₹2", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
+            [InlineKeyboardButton("⭐⭐ 10 STAR — ₹20", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
+            [InlineKeyboardButton("⭐⭐⭐ 25 STAR — ₹50", url=f"https://t.me/{OWNER_USERNAME[1:]}")]
         ]
         await update.message.reply_text(
-            "⭐ PAID PUSH PRICES\n\nContact Owner: @ARPANMODX",
+            f"⭐ PAID PUSH PRICES\n\nContact Owner: {OWNER_USERNAME}",
             reply_markup=InlineKeyboardMarkup(kb)
         )
 
     elif text == "⚫ CONTACT OWNER":
-        await update.message.reply_text(f"Contact Owner: {OWNER_USERNAME}")
+        await update.message.reply_text(
+            f"👤 Contact Owner\nUsername: {OWNER_USERNAME}\n"
+            f"📩 Click to message: https://t.me/{OWNER_USERNAME[1:]}"
+        )
+
+    elif text == "🔗 CHANNEL":
+        kb = [[InlineKeyboardButton("Join Channel", url="https://t.me/+qWBcAAqb33Q3MmE1")]]
+        await update.message.reply_text(
+            "📢 Join our channel for updates:",
+            reply_markup=InlineKeyboardMarkup(kb)
+        )
 
 # ================= MESSAGE HANDLER ================= #
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -227,6 +253,18 @@ async def addstock_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     add_stock(context.args[0], " ".join(context.args[1:]))
     await update.message.reply_text("✅ Stock added")
 
+async def removestock_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        return
+    if len(context.args) < 2:
+        await update.message.reply_text("Usage: /removestock <type> <data>")
+        return
+    stock_type = context.args[0].lower()
+    stock_data = " ".join(context.args[1:])
+    cur.execute("DELETE FROM stock WHERE type=? AND data=? LIMIT 1", (stock_type, stock_data))
+    conn.commit()
+    await update.message.reply_text(f"✅ Stock removed: {stock_type} → {stock_data}")
+
 async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
@@ -234,16 +272,30 @@ async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
     add_balance(uid, amt)
     await update.message.reply_text("✅ Balance added")
 
+async def stock_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        f"📊 STOCK STATS\n\n"
+        f"Facebook: {stock_count('facebook')}\n"
+        f"Google: {stock_count('google')}\n"
+        f"Twitter: {stock_count('twitter')}\n"
+        f"Guest: {stock_count('guest')}"
+    )
+
 # ================= RUN ================= #
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 
+# Command Handlers
 app.add_handler(CommandHandler("start", start))
 app.add_handler(CommandHandler("stats", stats))
 app.add_handler(CommandHandler("refer", refer_command))
 app.add_handler(CommandHandler("update", update_bot))
 app.add_handler(CommandHandler("addpromo", addpromo))
 app.add_handler(CommandHandler("addstock", addstock_cmd))
+app.add_handler(CommandHandler("removestock", removestock_cmd))
 app.add_handler(CommandHandler("approve", approve))
+app.add_handler(CommandHandler("stockstats", stock_stats))
+
+# Message Handler
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
 print("Bot running...")
