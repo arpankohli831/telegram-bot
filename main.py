@@ -136,6 +136,9 @@ def main_keyboard():
         resize_keyboard=True
     )
 
+# ================= PROMO TRACKER ================= #
+awaiting_promo = set()  # users waiting to send promo code
+
 # ================= START ================= #
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
@@ -210,6 +213,10 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "🟣 REFER & EARN":
         await refer_command(update, context)
 
+    elif text == "🟣 PROMO CODE":
+        awaiting_promo.add(uid)
+        await update.message.reply_text("💌 Send your promo code now:")
+
     elif text == "⭐ PAID PUSH⭐":
         kb = [
             [InlineKeyboardButton("⭐ 1 STAR — ₹2", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
@@ -236,6 +243,34 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ================= MESSAGE HANDLER ================= #
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+    text = update.message.text.strip()
+
+    # Check if user is sending a promo code
+    if uid in awaiting_promo:
+        awaiting_promo.remove(uid)
+        code = text.upper()
+        cur.execute("SELECT amount, max_uses, used FROM promocodes WHERE code=?", (code,))
+        row = cur.fetchone()
+        if not row:
+            await update.message.reply_text("❌ Invalid promo code")
+            return
+        amount, max_uses, used = row
+        if used >= max_uses:
+            await update.message.reply_text("❌ Promo code expired")
+            return
+        cur.execute("SELECT 1 FROM promo_used WHERE user_id=? AND code=?", (uid, code))
+        if cur.fetchone():
+            await update.message.reply_text("❌ You have already used this promo code")
+            return
+        add_balance(uid, amount)
+        cur.execute("UPDATE promocodes SET used=used+1 WHERE code=?", (code,))
+        cur.execute("INSERT INTO promo_used VALUES (?,?)", (uid, code))
+        conn.commit()
+        await update.message.reply_text(f"✅ Promo applied! ₹{amount} added to your balance")
+        return
+
+    # Otherwise, handle as normal menu
     await menu(update, context)
 
 # ================= ADMIN ================= #
@@ -261,7 +296,6 @@ async def removestock_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
     stock_type = context.args[0].lower()
     stock_data = " ".join(context.args[1:])
-    # ❌ Original faulty line: cur.execute("DELETE FROM stock WHERE type=? AND data=? LIMIT 1", (stock_type, stock_data))
     cur.execute("SELECT id FROM stock WHERE type=? AND data=? LIMIT 1", (stock_type, stock_data))
     row = cur.fetchone()
     if not row:
@@ -287,33 +321,6 @@ async def stock_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Guest: {stock_count('guest')}"
     )
 
-# ================= NEW FEATURES ================= #
-# 1️⃣ Redeem promo code
-async def redeem(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = update.effective_user.id
-    if not context.args:
-        await update.message.reply_text("Usage: /redeem <CODE>")
-        return
-    code = context.args[0].upper()
-    cur.execute("SELECT amount, max_uses, used FROM promocodes WHERE code=?", (code,))
-    row = cur.fetchone()
-    if not row:
-        await update.message.reply_text("❌ Invalid promo code")
-        return
-    amount, max_uses, used = row
-    if used >= max_uses:
-        await update.message.reply_text("❌ Promo code expired")
-        return
-    cur.execute("SELECT 1 FROM promo_used WHERE user_id=? AND code=?", (uid, code))
-    if cur.fetchone():
-        await update.message.reply_text("❌ You have already used this promo code")
-        return
-    add_balance(uid, amount)
-    cur.execute("UPDATE promocodes SET used=used+1 WHERE code=?", (code,))
-    cur.execute("INSERT INTO promo_used VALUES (?,?)", (uid, code))
-    conn.commit()
-    await update.message.reply_text(f"✅ Promo applied! ₹{amount} added to your balance")
-
 # ================= RUN ================= #
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 
@@ -327,9 +334,6 @@ app.add_handler(CommandHandler("addstock", addstock_cmd))
 app.add_handler(CommandHandler("removestock", removestock_cmd))
 app.add_handler(CommandHandler("approve", approve))
 app.add_handler(CommandHandler("stockstats", stock_stats))
-
-# New command: redeem promo
-app.add_handler(CommandHandler("redeem", redeem))
 
 # Message Handler
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
