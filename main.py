@@ -1,22 +1,20 @@
 import sqlite3
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    ApplicationBuilder, CommandHandler, CallbackQueryHandler,
+    ApplicationBuilder, CommandHandler,
     MessageHandler, ContextTypes, filters
 )
 from keep_alive import keep_alive
 keep_alive()
 # ================= CONFIG ================= #
-
 BOT_TOKEN = "8769768942:AAE9my7p64TxDgi4vGbh-maJQVDVE9EVxjA"
-ADMIN_ID = 123456789
-OWNER_USERNAME = "@ARPANMODX"
+ADMIN_ID = 7853887140
+OWNER_USERNAME = "@ARPANMODX"  # Owner username everywhere
 UPI_ID = "7908684711@fam"
 QR_IMAGE_PATH = "upi_qr.png"
 REF_BONUS = 1
 
 # ================= DATABASE ================= #
-
 conn = sqlite3.connect("bot.db", check_same_thread=False)
 cur = conn.cursor()
 
@@ -38,13 +36,6 @@ CREATE TABLE IF NOT EXISTS stock (
 """)
 
 cur.execute("""
-CREATE TABLE IF NOT EXISTS sold (
-    type TEXT PRIMARY KEY,
-    count INTEGER DEFAULT 0
-)
-""")
-
-cur.execute("""
 CREATE TABLE IF NOT EXISTS promocodes (
     code TEXT PRIMARY KEY,
     amount INTEGER,
@@ -60,14 +51,9 @@ CREATE TABLE IF NOT EXISTS promo_used (
     UNIQUE(user_id, code)
 )
 """)
-
-for t in ["facebook", "google", "twitter", "guest"]:
-    cur.execute("INSERT OR IGNORE INTO sold (type,count) VALUES (?,0)", (t,))
-
 conn.commit()
 
 # ================= PRICES ================= #
-
 PRICES = {
     "facebook": 25,
     "google": 25,
@@ -76,33 +62,25 @@ PRICES = {
 }
 
 # ================= HELPERS ================= #
-
 def add_user(uid, ref=None):
     cur.execute("SELECT 1 FROM users WHERE user_id=?", (uid,))
     if cur.fetchone():
         return
-    if ref == uid:
-        ref = None
     cur.execute("INSERT INTO users VALUES (?,?,?,?)", (uid, 0, ref, 0))
     if ref:
-        cur.execute("UPDATE users SET balance=balance+?, referred_count=referred_count+1 WHERE user_id=?",
-                    (REF_BONUS, ref))
+        cur.execute("UPDATE users SET balance=balance+?, referred_count=referred_count+1 WHERE user_id=?", (REF_BONUS, ref))
     conn.commit()
 
 def balance(uid):
     cur.execute("SELECT balance FROM users WHERE user_id=?", (uid,))
     return cur.fetchone()[0]
 
-def referral_count(uid):
-    cur.execute("SELECT referred_count FROM users WHERE user_id=?", (uid,))
-    return cur.fetchone()[0]
+def add_balance(uid, amt):
+    cur.execute("UPDATE users SET balance=balance+? WHERE user_id=?", (amt, uid))
+    conn.commit()
 
 def deduct(uid, amt):
     cur.execute("UPDATE users SET balance=balance-? WHERE user_id=?", (amt, uid))
-    conn.commit()
-
-def add_balance(uid, amt):
-    cur.execute("UPDATE users SET balance=balance+? WHERE user_id=?", (amt, uid))
     conn.commit()
 
 def add_stock(t, d):
@@ -115,7 +93,6 @@ def get_stock(t):
     if not r:
         return None
     cur.execute("DELETE FROM stock WHERE id=?", (r[0],))
-    cur.execute("UPDATE sold SET count=count+1 WHERE type=?", (t,))
     conn.commit()
     return r[1]
 
@@ -123,136 +100,151 @@ def stock_count(t):
     cur.execute("SELECT COUNT(*) FROM stock WHERE type=?", (t,))
     return cur.fetchone()[0]
 
-def sold_stats():
-    cur.execute("SELECT type,count FROM sold")
-    return dict(cur.fetchall())
+def referral_count(uid):
+    cur.execute("SELECT referred_count FROM users WHERE user_id=?", (uid,))
+    return cur.fetchone()[0]
 
-# ================= MAIN MENU ================= #
-
-async def show_menu(chat_id, context):
-    kb = [
-        [InlineKeyboardButton("💰 ADD FUNDS", callback_data="add_funds")],
+# ================= KEYBOARD ================= #
+def main_keyboard():
+    return ReplyKeyboardMarkup(
         [
-            InlineKeyboardButton("📘 Facebook ID", callback_data="buy_facebook"),
-            InlineKeyboardButton("📧 Google ID", callback_data="buy_google")
+            ["➕ ADD FUNDS"],
+            ["📘 FACEBOOK ₹25/", "📧 GOOGLE ₹25/"],
+            ["🐦 TWITTER ₹25/", "🎮 GUEST ₹20/"],
+            ["💰 MY BALANCE", "📦 STOCK"],
+            ["🎁 PROMO CODE", "👥 REFER & EARN"],
+            ["⭐ PAID PUSH", "👤 CONTACT OWNER"]
         ],
-        [
-            InlineKeyboardButton("🐦 Twitter ID", callback_data="buy_twitter"),
-            InlineKeyboardButton("🎮 Guest ID ID", callback_data="buy_guest")
-        ],
-        [
-            InlineKeyboardButton("💵 Balance", callback_data="balance"),
-            InlineKeyboardButton("📦 Stock", callback_data="stock")
-        ],
-        [
-            InlineKeyboardButton("👥 Refer & Earn", callback_data="refer"),
-            InlineKeyboardButton("📊 Statistics", callback_data="stats")
-        ],
-        [
-            InlineKeyboardButton("⭐ PAID PUSH", callback_data="paid_push"),
-            InlineKeyboardButton("👤 Owner", url="https://t.me/ARPANMODX")
-        ]
-    ]
-    await context.bot.send_message(chat_id, "🤖 *Main Menu*", reply_markup=InlineKeyboardMarkup(kb), parse_mode="Markdown")
+        resize_keyboard=True
+    )
 
 # ================= START ================= #
-
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     ref = int(context.args[0]) if context.args and context.args[0].isdigit() else None
     add_user(uid, ref)
-    await show_menu(update.message.chat_id, context)
+    await update.message.reply_text(
+        f"🔥 *WELCOME TO 8 LEVEL ID SELLER BOT*\n\nChoose option 👇",
+        reply_markup=main_keyboard(),
+        parse_mode="Markdown"
+    )
 
-# ================= BUTTONS ================= #
+# ================= MENU HANDLER ================= #
+async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    uid = update.effective_user.id
 
-async def buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    q = update.callback_query
-    await q.answer()
-    uid = q.from_user.id
+    if text == "💰 MY BALANCE":
+        await update.message.reply_text(f"💵 Balance: ₹{balance(uid)}")
 
-    back = InlineKeyboardMarkup([[InlineKeyboardButton("⬅️ Back to Menu", callback_data="back")]])
-
-    if q.data == "back":
-        await show_menu(q.message.chat_id, context)
-
-    elif q.data == "balance":
-        await q.edit_message_text(f"💵 Balance: ₹{balance(uid)}", reply_markup=back)
-
-    elif q.data == "stock":
-        await q.edit_message_text(
-            f"📦 Stock\n\nFacebook: {stock_count('facebook')}\nGoogle: {stock_count('google')}\n"
-            f"Twitter: {stock_count('twitter')}\nGuest ID: {stock_count('guest')}",
-            reply_markup=back
+    elif text == "📦 STOCK":
+        await update.message.reply_text(
+            f"📦 STOCK\n\n"
+            f"Facebook: {stock_count('facebook')}\n"
+            f"Google: {stock_count('google')}\n"
+            f"Twitter: {stock_count('twitter')}\n"
+            f"Guest: {stock_count('guest')}"
         )
 
-    elif q.data == "refer":
-        link = f"https://t.me/Arpan_8_level_id_sell_bot?start={uid}"
-        await q.edit_message_text(
-            f"👥 Refer & Earn\n\n{link}\nReferrals: {referral_count(uid)}",
-            reply_markup=back
-        )
-
-    elif q.data == "stats":
-        s = sold_stats()
-        total = sum(s.values())
-        await q.edit_message_text(
-            f"📊 SALES STATS\n\n"
-            f"Facebook: {s['facebook']}\nGoogle: {s['google']}\n"
-            f"Twitter: {s['twitter']}\nGuest ID: {s['guest']}\n\n"
-            f"🔥 Total Sold: {total}",
-            reply_markup=back
-        )
-
-    elif q.data == "add_funds":
-        await q.message.reply_photo(
+    elif text == "➕ ADD FUNDS":
+        await update.message.reply_photo(
             photo=open(QR_IMAGE_PATH, "rb"),
-            caption="💰 Scan QR\nUPI: 7908684711@fam\nSend UTR after payment"
+            caption=f"💰 Scan & Pay\n\nUPI: {UPI_ID}\nSend UTR to {OWNER_USERNAME}"
         )
 
-    elif q.data.startswith("buy_"):
-        t = q.data.replace("buy_", "")
+    elif text in ["📘 FACEBOOK ID", "📧 GOOGLE ID", "🐦 TWITTER ACCOUNT", "🎮 GUEST ID"]:
+        t = ("facebook" if "FACEBOOK" in text else
+             "google" if "GOOGLE" in text else
+             "twitter" if "TWITTER" in text else
+             "guest")
         if balance(uid) < PRICES[t]:
-            await q.edit_message_text("❌ Not enough balance", reply_markup=back)
+            await update.message.reply_text("❌ Not enough balance")
             return
         acc = get_stock(t)
         if not acc:
-            await q.edit_message_text("❌ Out of stock", reply_markup=back)
+            await update.message.reply_text("❌ Out of stock")
             return
         deduct(uid, PRICES[t])
-        await q.edit_message_text(f"✅ Purchased\n\n{acc}", reply_markup=back)
+        await update.message.reply_text(f"✅ PURCHASED\n\n{acc}\n💰 Remaining Balance: ₹{balance(uid)}")
 
-    elif q.data == "paid_push":
-        kb = [
-            [InlineKeyboardButton("⭐ 1 STAR — ₹2", url=f"https://t.me/@ARPANMODX")],
-            [InlineKeyboardButton("⭐⭐ 10 STAR — ₹20", url=f"https://t.me/@ARPANMODX")],
-            [InlineKeyboardButton("⭐⭐⭐ 25 STAR — ₹50", url=f"https://t.me/@ARPANMODX")],
-            [InlineKeyboardButton("⬅️ Back to Menu", callback_data="back")]
-        ]
-        await q.edit_message_text(
-            "⭐ PAID PUSH PRICES\n\n1 STAR → ₹2\n10 STAR → ₹20\n25 STAR → ₹50",
-            reply_markup=InlineKeyboardMarkup(kb)
+    elif text == "👥 REFER & EARN":
+        link = f"https://t.me/Arpan_8_level_id_sell_bot?start={uid}"
+        await update.message.reply_text(
+            f"👥 Refer & Earn\n\n{link}\nEarn ₹{REF_BONUS} per referral"
         )
 
+    elif text == "🎁 PROMO CODE":
+        await update.message.reply_text("✏️ Send promo code:")
+
+    elif text == "⭐ PAID PUSH":
+        kb = [
+            [InlineKeyboardButton("⭐ 1 STAR — ₹2", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
+            [InlineKeyboardButton("⭐⭐ 10 STAR — ₹20", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
+            [InlineKeyboardButton("⭐⭐⭐ 25 STAR — ₹50", url=f"https://t.me/{OWNER_USERNAME[1:]}")]
+        ]
+
+    elif text == "👤 CONTACT OWNER":
+    await update.message.reply_text(
+        "👤 Contact Owner\n\n"
+        "Username: @ARPANMODX\n"
+        "📩 Click to message: https://t.me/ARPANMODX"
+    )
+
+# ================= PROMO REDEEM ================= #
+async def promo_redeem(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    code = update.message.text.strip()
+    uid = update.effective_user.id
+
+    cur.execute("SELECT amount,max_uses,used FROM promocodes WHERE code=?", (code,))
+    promo = cur.fetchone()
+    if not promo:
+        return
+    cur.execute("SELECT 1 FROM promo_used WHERE user_id=? AND code=?", (uid, code))
+    if cur.fetchone():
+        await update.message.reply_text("❌ Promo already used")
+        return
+    amount, max_uses, used = promo
+    if used >= max_uses:
+        await update.message.reply_text("❌ Promo expired")
+        return
+
+    cur.execute("INSERT INTO promo_used VALUES (?,?)", (uid, code))
+    cur.execute("UPDATE promocodes SET used=used+1 WHERE code=?", (code,))
+    add_balance(uid, amount)
+    conn.commit()
+
+    await update.message.reply_text(f"✅ Promo applied\n₹{amount} added to your balance!")
+
 # ================= ADMIN ================= #
+async def addpromo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        return
+    code, amt, uses = context.args
+    cur.execute("INSERT INTO promocodes VALUES (?,?,?,0)", (code, int(amt), int(uses)))
+    conn.commit()
+    await update.message.reply_text("✅ Promo created")
 
 async def addstock_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id == ADMIN_ID:
-        add_stock(context.args[0], " ".join(context.args[1:]))
-        await update.message.reply_text("✅ Stock added")
+    if update.effective_user.id != ADMIN_ID:
+        return
+    add_stock(context.args[0], " ".join(context.args[1:]))
+    await update.message.reply_text("✅ Stock added")
 
 async def approve(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id == ADMIN_ID:
-        uid, amt = int(context.args[0]), int(context.args[1])
-        add_balance(uid, amt)
-        await context.bot.send_message(uid, f"✅ ₹{amt} added")
+    if update.effective_user.id != ADMIN_ID:
+        return
+    uid, amt = int(context.args[0]), int(context.args[1])
+    add_balance(uid, amt)
+    await update.message.reply_text("✅ Balance added")
 
 # ================= RUN ================= #
-
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 app.add_handler(CommandHandler("start", start))
-app.add_handler(CallbackQueryHandler(buttons))
+app.add_handler(CommandHandler("addpromo", addpromo))
 app.add_handler(CommandHandler("addstock", addstock_cmd))
 app.add_handler(CommandHandler("approve", approve))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, promo_redeem))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, menu))
 
 print("Bot running...")
 app.run_polling()
