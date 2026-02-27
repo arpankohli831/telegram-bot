@@ -2,9 +2,14 @@ import sqlite3
 import os
 import sys
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
-from keep_alive import keep_alive
-keep_alive()
+from app import keep_alive  # Import the keep-alive function
+import time
+# Example for a Telegram bot
+from telegram import Bot
+from telegram.ext import Updater, CommandHandler
+
+keep_alive()  # Start the Flask server in the background
+
 
 # ================= CONFIG ================= #
 BOT_TOKEN = "8769768942:AAE9my7p64TxDgi4vGbh-maJQVDVE9EVxjA"
