@@ -2,14 +2,33 @@ import sqlite3
 import os
 import sys
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
-from app import keep_alive  # Import the keep-alive function
-import time
-# Example for a Telegram bot
+from flask import Flask
+from threading import Thread
+import os
+
+# --- Keep Alive ---
+app = Flask("keep_alive_bot")
+
+@app.route("/")
+def home():
+    return "Bot is alive"
+
+def run():
+    port = int(os.environ.get("PORT", 8080))  # Railway assigned port
+    app.run(host="0.0.0.0", port=port)
+
+def keep_alive():
+    Thread(target=run).start()
+
+keep_alive()  # Start Flask server in background
+
+# --- Your Bot Code Below ---
+# Example for Telegram bot
 from telegram import Bot
 from telegram.ext import Updater, CommandHandler
 
-keep_alive()  # Start the Flask server in the background
-
+def start(update, context):
+    update.message.reply_text("Hello! I am alive.")
 
 # ================= CONFIG ================= #
 BOT_TOKEN = "8769768942:AAE9my7p64TxDgi4vGbh-maJQVDVE9EVxjA"
