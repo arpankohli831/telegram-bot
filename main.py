@@ -3,8 +3,6 @@ import os
 import sys
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
-from keep_alive import keep_alive
-keep_alive()
 
 # ================= CONFIG ================= #
 BOT_TOKEN = "8769768942:AAE9my7p64TxDgi4vGbh-maJQVDVE9EVxjA"
@@ -186,26 +184,26 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Guest: {stock_count('guest')}"
         )
 
-elif text == "🟢 ADD FUNDS":
-    if os.path.exists(QR_IMAGE_PATH):
-        with open(QR_IMAGE_PATH, "rb") as photo:
-            await update.message.reply_photo(
-                photo=photo,
-                caption=(
-                    f"💰 Scan & Pay\n\n"
-                    f"👤 Owner: {OWNER_USERNAME}\n"
-                    f"UPI: {UPI_ID}\n\n"
-                    f"Send UTR OR SCREENSHOT to {OWNER_USERNAME}"
+    elif text == "🟢 ADD FUNDS":
+        if os.path.exists(QR_IMAGE_PATH):
+            with open(QR_IMAGE_PATH, "rb") as photo:
+                await update.message.reply_photo(
+                    photo=photo,
+                    caption=(
+                        f"💰 Scan & Pay\n\n"
+                        f"👤 Owner: {OWNER_USERNAME}\n"
+                        f"UPI: {UPI_ID}\n\n"
+                        f"Send UTR OR SCREENSHOT to {OWNER_USERNAME}"
+                    )
                 )
+        else:
+            await update.message.reply_text(
+                f"⚠️ QR not found!\n\n"
+                f"💰 Pay via UPI\n\n"
+                f"👤 Owner: {OWNER_USERNAME}\n"
+                f"UPI: {UPI_ID}\n\n"
+                f"Send UTR OR SCREENSHOT to {OWNER_USERNAME}"
             )
-    else:
-        await update.message.reply_text(
-            f"⚠️ QR not found!\n\n"
-            f"💰 Pay via UPI\n\n"
-            f"👤 Owner: {OWNER_USERNAME}\n"
-            f"UPI: {UPI_ID}\n\n"
-            f"Send UTR OR SCREENSHOT to {OWNER_USERNAME}"
-        )
 
     elif text in ["🔵 FACEBOOK ₹25", "🔵 GOOGLE ₹25", "🔵 TWITTER ₹25", "🔵 GUEST ₹20"]:
         t = ("facebook" if "FACEBOOK" in text else
@@ -223,7 +221,9 @@ elif text == "🟢 ADD FUNDS":
             return
 
         deduct(uid, PRICES[t])
-        await update.message.reply_text(f"✅ PURCHASED\n\n{acc}\nRemaining Balance: ₹{balance(uid)}")
+        await update.message.reply_text(
+            f"✅ PURCHASED\n\n{acc}\nRemaining Balance: ₹{balance(uid)}"
+        )
 
     elif text == "🟣 REFER & EARN":
         await refer_command(update, context)
@@ -233,18 +233,18 @@ elif text == "🟢 ADD FUNDS":
         await update.message.reply_text("💌 Send your promo code now:")
 
     elif text == "⭐ PAID PUSH⭐":
-    kb = [
-        [InlineKeyboardButton("⭐ 1 STAR — ₹2", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
-        [InlineKeyboardButton("⭐⭐ 10 STAR — ₹20", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
-        [InlineKeyboardButton("⭐⭐⭐ 25 STAR — ₹50", url=f"https://t.me/{OWNER_USERNAME[1:]}")]
-    ]
+        kb = [
+            [InlineKeyboardButton("⭐ 1 STAR — ₹2", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
+            [InlineKeyboardButton("⭐⭐ 10 STAR — ₹20", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
+            [InlineKeyboardButton("⭐⭐⭐ 25 STAR — ₹50", url=f"https://t.me/{OWNER_USERNAME[1:]}")]
+        ]
 
-    await update.message.reply_text(
-        f"⭐ PAID PUSH PRICES\n\n"
-        f"👤 Owner: {OWNER_USERNAME}\n"
-        f"📩 Contact: https://t.me/{OWNER_USERNAME[1:]}",
-        reply_markup=InlineKeyboardMarkup(kb)
-    )
+        await update.message.reply_text(
+            f"⭐ PAID PUSH PRICES\n\n"
+            f"👤 Owner: {OWNER_USERNAME}\n"
+            f"📩 Contact: https://t.me/{OWNER_USERNAME[1:]}",
+            reply_markup=InlineKeyboardMarkup(kb)
+        )
 
     elif text == "🔗 CHANNEL":
         kb = [[InlineKeyboardButton("Join Channel", url="https://t.me/+qWBcAAqb33Q3MmE1")]]
@@ -253,6 +253,9 @@ elif text == "🟢 ADD FUNDS":
             reply_markup=InlineKeyboardMarkup(kb)
         )
 
+    elif text == "⚫ CONTACT OWNER":
+        await update.message.reply_text(f"👤 Contact: {OWNER_USERNAME}")
+        
 # ================= MESSAGE HANDLER ================= #
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
