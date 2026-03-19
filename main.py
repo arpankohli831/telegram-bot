@@ -2,33 +2,9 @@ import sqlite3
 import os
 import sys
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
-from flask import Flask
-from threading import Thread
-import os
-
-# --- Keep Alive ---
-app = Flask("keep_alive_bot")
-
-@app.route("/")
-def home():
-    return "Bot is alive"
-
-def run():
-    port = int(os.environ.get("PORT", 8080))  # Railway assigned port
-    app.run(host="0.0.0.0", port=port)
-
-def keep_alive():
-    Thread(target=run).start()
-
-keep_alive()  # Start Flask server in background
-
-# --- Your Bot Code Below ---
-# Example for Telegram bot
-from telegram import Bot
-from telegram.ext import Updater, CommandHandler
-
-def start(update, context):
-    update.message.reply_text("Hello! I am alive.")
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from keep_alive import keep_alive
+keep_alive()
 
 # ================= CONFIG ================= #
 BOT_TOKEN = "8769768942:AAE9my7p64TxDgi4vGbh-maJQVDVE9EVxjA"
@@ -210,10 +186,25 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"Guest: {stock_count('guest')}"
         )
 
-    elif text == "🟢 ADD FUNDS":
-        await update.message.reply_photo(
-            photo=open(QR_IMAGE_PATH, "rb"),
-            caption=f"💰 Scan & Pay\n\nUPI: {UPI_ID}\nSend UTR to {OWNER_USERNAME}"
+elif text == "🟢 ADD FUNDS":
+    if os.path.exists(QR_IMAGE_PATH):
+        with open(QR_IMAGE_PATH, "rb") as photo:
+            await update.message.reply_photo(
+                photo=photo,
+                caption=(
+                    f"💰 Scan & Pay\n\n"
+                    f"👤 Owner: {OWNER_USERNAME}\n"
+                    f"UPI: {UPI_ID}\n\n"
+                    f"Send UTR OR SCREENSHOT to {OWNER_USERNAME}"
+                )
+            )
+    else:
+        await update.message.reply_text(
+            f"⚠️ QR not found!\n\n"
+            f"💰 Pay via UPI\n\n"
+            f"👤 Owner: {OWNER_USERNAME}\n"
+            f"UPI: {UPI_ID}\n\n"
+            f"Send UTR OR SCREENSHOT to {OWNER_USERNAME}"
         )
 
     elif text in ["🔵 FACEBOOK ₹25", "🔵 GOOGLE ₹25", "🔵 TWITTER ₹25", "🔵 GUEST ₹20"]:
@@ -242,21 +233,18 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("💌 Send your promo code now:")
 
     elif text == "⭐ PAID PUSH⭐":
-        kb = [
-            [InlineKeyboardButton("⭐ 1 STAR — ₹2", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
-            [InlineKeyboardButton("⭐⭐ 10 STAR — ₹20", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
-            [InlineKeyboardButton("⭐⭐⭐ 25 STAR — ₹50", url=f"https://t.me/{OWNER_USERNAME[1:]}")]
-        ]
-        await update.message.reply_text(
-            f"⭐ PAID PUSH PRICES\n\nContact Owner: {OWNER_USERNAME}",
-            reply_markup=InlineKeyboardMarkup(kb)
-        )
+    kb = [
+        [InlineKeyboardButton("⭐ 1 STAR — ₹2", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
+        [InlineKeyboardButton("⭐⭐ 10 STAR — ₹20", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
+        [InlineKeyboardButton("⭐⭐⭐ 25 STAR — ₹50", url=f"https://t.me/{OWNER_USERNAME[1:]}")]
+    ]
 
-    elif text == "⚫ CONTACT OWNER":
-        await update.message.reply_text(
-            f"👤 Contact Owner\nUsername: {OWNER_USERNAME}\n"
-            f"📩 Click to message: https://t.me/{OWNER_USERNAME[1:]}"
-        )
+    await update.message.reply_text(
+        f"⭐ PAID PUSH PRICES\n\n"
+        f"👤 Owner: {OWNER_USERNAME}\n"
+        f"📩 Contact: https://t.me/{OWNER_USERNAME[1:]}",
+        reply_markup=InlineKeyboardMarkup(kb)
+    )
 
     elif text == "🔗 CHANNEL":
         kb = [[InlineKeyboardButton("Join Channel", url="https://t.me/+qWBcAAqb33Q3MmE1")]]
@@ -344,7 +332,32 @@ async def stock_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Twitter: {stock_count('twitter')}\n"
         f"Guest: {stock_count('guest')}"
     )
+async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != ADMIN_ID:
+        return
 
+    if not context.args:
+        await update.message.reply_text("Usage: /broadcast <message>")
+        return
+
+    msg = " ".join(context.args)
+
+    cur.execute("SELECT user_id FROM users")
+    users = cur.fetchall()
+
+    success = 0
+    failed = 0
+
+    for user in users:
+        try:
+            await context.bot.send_message(chat_id=user[0], text=msg)
+            success += 1
+        except:
+            failed += 1
+
+    await update.message.reply_text(
+        f"📢 Broadcast Sent\n\n✅ Success: {success}\n❌ Failed: {failed}"
+    )
 # ================= RUN ================= #
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 
@@ -358,7 +371,7 @@ app.add_handler(CommandHandler("addstock", addstock_cmd))
 app.add_handler(CommandHandler("removestock", removestock_cmd))
 app.add_handler(CommandHandler("approve", approve))
 app.add_handler(CommandHandler("stockstats", stock_stats))
-
+app.add_handler(CommandHandler("broadcast", broadcast))
 # Message Handler
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
