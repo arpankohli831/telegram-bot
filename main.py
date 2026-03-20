@@ -151,8 +151,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 📸 Get File ID from image
 async def get_file_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
     file_id = update.message.photo[-1].file_id
-    print(file_id)
-    await update.message.reply_text(f"📁 FILE ID:\n{file_id}")
+    print(file_id)  # shows in console
+    await update.message.reply_text(file_id)
+
+app.add_handler(MessageHandler(filters.PHOTO, get_file_id))
     
 # ================= COMMANDS ================= #
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
