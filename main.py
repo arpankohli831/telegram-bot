@@ -2,11 +2,12 @@ import sqlite3
 import os
 import sys
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
+from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 
 # ================= CONFIG ================= #
 BOT_TOKEN = "8769768942:AAE9my7p64TxDgi4vGbh-maJQVDVE9EVxjA"
 ADMIN_ID = 7853887140
+users = set()
 OWNER_USERNAME = "@ARPANMODX"
 UPI_ID = "7908684711@fam"
 QR_IMAGE_PATH = "upi_qr.png"
@@ -147,7 +148,12 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=main_keyboard(),
         parse_mode="Markdown"
     )
-
+    # 📸 Get File ID from image
+async def get_file_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    file_id = update.message.photo[-1].file_id
+    print(file_id)
+    await update.message.reply_text(f"📁 FILE ID:\n{file_id}")
+    
 # ================= COMMANDS ================= #
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cur.execute("SELECT COUNT(*) FROM users")
@@ -254,7 +260,9 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
     elif text == "⚫ CONTACT OWNER":
-        await update.message.reply_text(f"👤 Contact: {OWNER_USERNAME}")
+    await update.message.reply_text(
+        "👤 Contact: @ARPANMODX\n📩 https://t.me/ARPANMODX"
+    )
         
 # ================= MESSAGE HANDLER ================= #
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -335,32 +343,66 @@ async def stock_stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"Twitter: {stock_count('twitter')}\n"
         f"Guest: {stock_count('guest')}"
     )
+# Save users
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    users.add(update.effective_user.id)
+    await update.message.reply_text("✅ Registered!")
+
+# 🔥 Broadcast
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
+        await update.message.reply_text("❌ Admin only!")
         return
-
-    if not context.args:
-        await update.message.reply_text("Usage: /broadcast <message>")
-        return
-
-    msg = " ".join(context.args)
-
-    cur.execute("SELECT user_id FROM users")
-    users = cur.fetchall()
 
     success = 0
     failed = 0
 
-    for user in users:
-        try:
-            await context.bot.send_message(chat_id=user[0], text=msg)
-            success += 1
-        except:
-            failed += 1
+    # Buttons
+    keyboard = [
+        [InlineKeyboardButton("🛒 Buy Now", url="https://t.me/ARPANMODX")],
+        [InlineKeyboardButton("📩 Contact", url="https://t.me/ARPANMODX")]
+    ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
+
+    # ✅ BEST: Reply method (keeps format)
+    if update.message.reply_to_message:
+        msg = update.message.reply_to_message
+
+        for user_id in users:
+            try:
+                await context.bot.copy_message(
+                    chat_id=user_id,
+                    from_chat_id=update.effective_chat.id,
+                    message_id=msg.message_id,
+                    reply_markup=reply_markup
+                )
+                success += 1
+            except:
+                failed += 1
+
+    # ✅ Text method with line breaks support
+    else:
+        text = update.message.text.replace('/broadcast ', '', 1)
+
+        for user_id in users:
+            try:
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text=text,
+                    parse_mode="Markdown",
+                    reply_markup=reply_markup
+                )
+                success += 1
+            except:
+                failed += 1
 
     await update.message.reply_text(
-        f"📢 Broadcast Sent\n\n✅ Success: {success}\n❌ Failed: {failed}"
+        f"✅ Done!\n✔ Success: {success}\n❌ Failed: {failed}"
     )
+
+# Handlers
+app.add_handler(CommandHandler("start", start))
+app.add_handler(CommandHandler("broadcast", broadcast))
 # ================= RUN ================= #
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 
