@@ -64,6 +64,23 @@ CREATE TABLE IF NOT EXISTS referrals (
     UNIQUE(referrer, referred)
 )
 """)
+# Sold stats table
+cur.execute("""
+CREATE TABLE IF NOT EXISTS sold (
+    type TEXT PRIMARY KEY,
+    count INTEGER DEFAULT 0
+)
+""")
+cur.execute("""
+CREATE TABLE IF NOT EXISTS orders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    product TEXT,
+    account TEXT,
+    price INTEGER
+)
+""")
+
 
 conn.commit()
 
@@ -120,6 +137,28 @@ def stock_count(t):
 def referral_count(uid):
     cur.execute("SELECT referred_count FROM users WHERE user_id=?", (uid,))
     return cur.fetchone()[0]
+    def increase_sold(t):
+    cur.execute("SELECT count FROM sold WHERE type=?", (t,))
+    row = cur.fetchone()
+
+    if row:
+        cur.execute("UPDATE sold SET count = count + 1 WHERE type=?", (t,))
+    else:
+        cur.execute("INSERT INTO sold (type, count) VALUES (?, 1)", (t,))
+
+    conn.commit()
+
+def sold_count(t):
+    cur.execute("SELECT count FROM sold WHERE type=?", (t,))
+    row = cur.fetchone()
+    return row[0] if row else 0
+    
+def save_order(uid, product, acc, price):
+    cur.execute(
+        "INSERT INTO orders (user_id, product, account, price) VALUES (?,?,?,?)",
+        (uid, product, acc, price)
+    )
+    conn.commit()
 
 # ================= KEYBOARD ================= #
 def main_keyboard():
@@ -140,12 +179,35 @@ def main_keyboard():
 awaiting_promo = set()  # users waiting to send promo code
 
 # ================= START ================= #
+# ✅ REPLACE START FUNCTION HERE
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    caption = """🔥 *WELCOME TO ARPAN MODX STORE* 🔥
+
+━━━━━━━━━━━━━━━
+⚡ Instant Delivery  
+🔒 100% Secure  
+💎 Premium Services  
+━━━━━━━━━━━━━━━
+
+🛒 Buy Now • Fast Delivery • Trusted"""
+
+    keyboard = [
+        [InlineKeyboardButton("🛒 Buy Now", url="https://t.me/ARPANMODX")],
+        [InlineKeyboardButton("📩 Contact Owner", url="https://t.me/ARPANMODX")]
+    ]
+
+    await update.message.reply_photo(
+        photo="AgACAgUAAxkBAAID1mm9gfVGn9GXIMFMo2qrxg9XUKLPAAKyDWsbHnbQVVujTTnkBUSpAQADAgADeQADOgQ",
+        caption=caption,
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     ref = int(context.args[0]) if context.args and context.args[0].isdigit() else None
     add_user(uid, ref)
     await update.message.reply_text(
-        f"""🔥 *WELCOME TO ARPAN MODX STORE* 🔥
+        f"""🔥 *WELCOME TO ARPAN MODX 8 LEVEL ID STORE* 🔥
 
 ━━━━━━━━━━━━━━━
 ⚡ Instant Delivery  
@@ -164,7 +226,48 @@ async def get_file_id(update, context):
         file_id = update.message.photo[-1].file_id
         await update.message.reply_text(f"FILE ID:\n{file_id}")
         print(file_id)
-    
+        
+   pending_payments = {} 
+   async def payment_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+
+    if update.message.photo:
+        file_id = update.message.photo[-1].file_id
+
+        pending_payments[uid] = file_id
+
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("✅ APPROVE", callback_data=f"approve_{uid}")],
+            [InlineKeyboardButton("❌ REJECT", callback_data=f"reject_{uid}")]
+        ])
+
+        await context.bot.send_photo(
+            chat_id=ADMIN_ID,
+            photo=file_id,
+            caption=f"💰 Payment Request\nUser: {uid}",
+            reply_markup=keyboard
+        )
+
+        await update.message.reply_text("✅ Sent to admin for approval")
+       
+         async def payment_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data
+
+    if query.from_user.id != ADMIN_ID:
+        return
+
+    uid = int(data.split("_")[1])
+
+    if "approve" in data:
+        add_balance(uid, 50)
+        await context.bot.send_message(uid, "✅ Payment Approved ₹50 added")
+        await query.edit_message_caption("✅ Approved")
+
+    elif "reject" in data:
+        await context.bot.send_message(uid, "❌ Payment Rejected")
+        await query.edit_message_caption("❌ Rejected")
+        
 # ================= COMMANDS ================= #
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cur.execute("SELECT COUNT(*) FROM users")
@@ -192,14 +295,16 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text == "🟡 MY BALANCE":
         await update.message.reply_text(f"💰 Balance: ₹{balance(uid)}")
 
-    elif text == "🟡 STOCK":
-        await update.message.reply_text(
-            f"📦 STOCK\n\n"
-            f"Facebook: {stock_count('facebook')}\n"
-            f"Google: {stock_count('google')}\n"
-            f"Twitter: {stock_count('twitter')}\n"
-            f"Guest: {stock_count('guest')}"
-        )
+elif text == "🟡 STOCK":
+    await update.message.reply_text(
+        f"📦 STOCK STATUS\n\n"
+        f"🔵 Facebook → Available: {stock_count('facebook')} | Sold: {sold_count('facebook')}\n"
+        f"🔵 Google → Available: {stock_count('google')} | Sold: {sold_count('google')}\n"
+        f"🔵 Twitter → Available: {stock_count('twitter')} | Sold: {sold_count('twitter')}\n"
+        f"🔵 Guest → Available: {stock_count('guest')} | Sold: {sold_count('guest')}"
+    )
+    if stock_count(t) <= 2:
+    await update.message.reply_text("⚠️ Only few left!")
 
     elif text == "🟢 ADD FUNDS":
         if os.path.exists(QR_IMAGE_PATH):
@@ -233,15 +338,31 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
         acc = get_stock(t)
-        if not acc:
-            await update.message.reply_text("❌ Out of stock")
-            return
+if not acc:
+    await update.message.reply_text("❌ Out of stock")
+    return
 
-        deduct(uid, PRICES[t])
-        await update.message.reply_text(
-            f"✅ PURCHASED\n\n{acc}\nRemaining Balance: ₹{balance(uid)}"
-        )
+deduct(uid, PRICES[t])
+save_order(uid, t, acc, PRICES[t])
+increase_sold(t)  # 🔥 ADD THIS LINE
 
+await update.message.reply_text(
+    f"✅ PURCHASED\n\n{acc}\nRemaining Balance: ₹{balance(uid)}"
+)
+import random
+
+order_id = random.randint(100000, 999999)
+
+await update.message.reply_text(
+    f"""🧾 INVOICE
+
+Order ID: #{order_id}
+Product: {t.upper()}
+Price: ₹{PRICES[t]}
+
+✅ Completed
+"""
+)
     elif text == "🟣 REFER & EARN":
         await refer_command(update, context)
 
@@ -272,7 +393,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif text == "⚫ CONTACT OWNER":
     await update.message.reply_text(
-        "👤 Contact: @ARPANMODX\n📩 https://t.me/ARPANMODX"
+        f"👤 Owner: {OWNER_USERNAME}\n📩 Contact: https://t.me/{OWNER_USERNAME[1:]}"
     )
         
 # ================= MESSAGE HANDLER ================= #
@@ -429,7 +550,8 @@ app.add_handler(CommandHandler("approve", approve))
 app.add_handler(CommandHandler("stockstats", stock_stats))
 app.add_handler(CommandHandler("broadcast", broadcast))
 app.add_handler(MessageHandler(filters.PHOTO, get_file_id))  # 🔥 IMPORTANT
-
+app.add_handler(CallbackQueryHandler(payment_buttons))
+app.add_handler(MessageHandler(filters.PHOTO, payment_screenshot))
 # Message Handler
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
