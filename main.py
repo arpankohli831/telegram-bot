@@ -186,8 +186,14 @@ awaiting_promo = set()  # users waiting to send promo code
 
 # ================= START ================= #
 # ✅ REPLACE START FUNCTION HERE
+# 🔹 Start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    caption = """🔥 *WELCOME TO ARPAN MODX STORE* 🔥
+    chat_id = update.effective_chat.id
+
+    photo_url = "https://i.ibb.co/zTzhdcD/file-000000092ec72089143935e095f0d3e.png"
+
+    caption = (
+        """🔥 *WELCOME TO ARPAN MODX STORE* 🔥
 
 ━━━━━━━━━━━━━━━
 ⚡ Instant Delivery  
@@ -196,24 +202,31 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 ━━━━━━━━━━━━━━━
 
 🛒 Buy Now • Fast Delivery • Trusted"""
-
+)
     keyboard = [
         [InlineKeyboardButton("🛒 Buy Now", url="https://t.me/ARPANMODX")],
         [InlineKeyboardButton("📩 Contact Owner", url="https://t.me/ARPANMODX")]
+    keyboard = [
+        [InlineKeyboardButton("🚀 Start Now", callback_data="start_btn")]
     ]
+    reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_photo(
-        photo="AgACAgUAAxkBAAID1mm9gfVGn9GXIMFMo2qrxg9XUKLPAAKyDWsbHnbQVVujTTnkBUSpAQADAgADeQADOgQ",
+    await context.bot.send_photo(
+        chat_id=chat_id,
+        photo=photo_url,
         caption=caption,
         parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(keyboard)
+        reply_markup=reply_markup
     )
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = update.effective_user.id
-    ref = int(context.args[0]) if context.args and context.args[0].isdigit() else None
-    add_user(uid, ref)
-    await update.message.reply_text(
-        f"""🔥 *WELCOME TO ARPAN MODX 8 LEVEL ID STORE* 🔥
+
+# 🔹 Button click handler
+async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "start_btn":
+        await query.message.reply_text(
+            """🔥 *WELCOME TO ARPAN MODX STORE* 🔥
 
 ━━━━━━━━━━━━━━━
 ⚡ Instant Delivery  
@@ -221,10 +234,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 💎 Premium Services  
 ━━━━━━━━━━━━━━━
 
-🛒 Buy Now • Fast Delivery • Trusted""",
-        reply_markup=main_keyboard(),
-        parse_mode="Markdown"
-    )
+🛒 Buy Now • Fast Delivery • Trusted"""
+        )     
+
     # 📸 Get File ID from image
 # 👇 ADD THIS FUNCTION
 async def capture_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -335,32 +347,31 @@ elif text == "🟢 ADD FUNDS":
         with open(QR_IMAGE_PATH, "rb") as photo:
             await update.message.reply_photo(
                 photo=photo,
-                caption=f"""💰 Scan & Pay
+                caption=(
+                    "💰 *Scan & Pay*\n\n"
+                    
+                    f"👤 Owner: {OWNER_USERNAME}\n"
+                    f"💳 UPI: `{UPI_ID}`\n\n"
 
-👤 Owner: {OWNER_USERNAME}
-💳 UPI: {UPI_ID}
+                    "━━━━━━━━━━━━━━━━━━\n"
+                    "🇮🇳 *UPI PAYMENT (INDIA)*\n"
+                    "━━━━━━━━━━━━━━━━━━\n"
 
-━━━━━━━━━━━━━━━━━━
-📩 After payment:
-Send UTR or screenshot to {OWNER_USERNAME}
-"""
-            )
-    else:
-        await update.message.reply_text(
-            f"""🇮🇳 UPI PAYMENT (INDIA)
-━━━━━━━━━━━━━━━━━━
-✨ Steps to Deposit:
-1. Copy the UPI ID below
-2. Pay using any UPI app (GPay / PhonePe / Paytm)
-3. Save UTR (Transaction ID)
-4. Send screenshot or UTR to {OWNER_USERNAME}
-
+                    "✨ *Steps to Deposit:*\n"
+                    "1. Copy the UPI ID below\n"
+                    "2. Pay using any UPI app (GPay / PhonePe / Paytm)\n"
+                    "3. Save UTR (Transaction ID)\n"
+                    f"4. Send screenshot or UTR to {OWNER_USERNAME}\n\n"
 💳 UPI ID: {UPI_ID}
 👤 Owner: {OWNER_USERNAME}
+                    "━━━━━━━━━━━━━━━━━━\n"
+                    "⚠️ Payment will be verified before adding balance."
+                ),
+                parse_mode="Markdown"
+            )
 
-━━━━━━━━━━━━━━━━━━
-⚠️ Note: Payment will be verified before adding balance."""
-        )
+
+       
 
     elif text in ["🔵 FACEBOOK ₹25", "🔵 GOOGLE ₹25", "🔵 TWITTER ₹25", "🔵 GUEST ₹20"]:
         t = ("facebook" if "FACEBOOK" in text else
