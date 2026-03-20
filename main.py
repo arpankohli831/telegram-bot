@@ -419,6 +419,8 @@ app.add_handler(CommandHandler("removestock", removestock_cmd))
 app.add_handler(CommandHandler("approve", approve))
 app.add_handler(CommandHandler("stockstats", stock_stats))
 app.add_handler(CommandHandler("broadcast", broadcast))
+app.add_handler(MessageHandler(filters.PHOTO, get_file_id))  # 🔥 IMPORTANT
+
 # Message Handler
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
