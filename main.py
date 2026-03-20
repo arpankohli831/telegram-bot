@@ -464,6 +464,36 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await menu(update, context)
 
 # ================= ADMIN ================= #
+async def payment_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    data = query.data
+
+    if query.from_user.id != ADMIN_ID:
+        return
+
+    uid = int(data.split("_")[1])
+
+    if uid not in pending_payments:
+        return
+
+    amount = pending_payments[uid]["amount"]
+
+    if data.startswith("approve"):
+        add_balance(uid, amount)
+
+        await context.bot.send_message(
+            uid,
+            f"✅ Payment Approved\n💰 ₹{amount} added to wallet"
+        )
+
+        await query.edit_message_caption(f"✅ Approved ₹{amount}")
+        pending_payments.pop(uid)
+
+    elif data.startswith("reject"):
+        await context.bot.send_message(uid, "❌ Payment Rejected")
+        await query.edit_message_caption("❌ Rejected")
+        pending_payments.pop(uid)
+        
 async def addpromo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
         return
