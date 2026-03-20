@@ -3,6 +3,7 @@ import os
 import sys
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
+from telegram.ext import MessageHandler, filters
 
 # ================= CONFIG ================= #
 BOT_TOKEN = "8769768942:AAE9my7p64TxDgi4vGbh-maJQVDVE9EVxjA"
@@ -144,17 +145,25 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ref = int(context.args[0]) if context.args and context.args[0].isdigit() else None
     add_user(uid, ref)
     await update.message.reply_text(
-        f"🔥 *WELCOME TO 8 LEVEL ID SELLER BOT*\n\nChoose option 👇",
+        f"""🔥 *WELCOME TO ARPAN MODX STORE* 🔥
+
+━━━━━━━━━━━━━━━
+⚡ Instant Delivery  
+🔒 100% Secure  
+💎 Premium Services  
+━━━━━━━━━━━━━━━
+
+🛒 Buy Now • Fast Delivery • Trusted""",
         reply_markup=main_keyboard(),
         parse_mode="Markdown"
     )
     # 📸 Get File ID from image
-async def get_file_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    file_id = update.message.photo[-1].file_id
-    print(file_id)  # shows in console
-    await update.message.reply_text(file_id)
-
-app.add_handler(MessageHandler(filters.PHOTO, get_file_id))
+# 👇 ADD THIS FUNCTION
+async def get_file_id(update, context):
+    if update.message and update.message.photo:
+        file_id = update.message.photo[-1].file_id
+        await update.message.reply_text(f"FILE ID:\n{file_id}")
+        print(file_id)
     
 # ================= COMMANDS ================= #
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
