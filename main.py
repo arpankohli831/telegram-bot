@@ -268,6 +268,16 @@ async def get_file_id(update, context):
         await context.bot.send_message(uid, "❌ Payment Rejected")
         await query.edit_message_caption("❌ Rejected")
         
+        async def auto_screenshot_to_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+
+    photo = update.message.photo[-1].file_id
+
+    await context.bot.send_photo(
+        chat_id=ADMIN_ID,
+        photo=photo,
+        caption=f"📸 Screenshot\n\n🆔 ID: {user.id}\n👤 @{user.username}"
+    )
 # ================= COMMANDS ================= #
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cur.execute("SELECT COUNT(*) FROM users")
@@ -320,12 +330,20 @@ elif text == "🟡 STOCK":
                 )
         else:
             await update.message.reply_text(
-                f"⚠️ QR not found!\n\n"
-                f"💰 Pay via UPI\n\n"
-                f"👤 Owner: {OWNER_USERNAME}\n"
-                f"UPI: {UPI_ID}\n\n"
-                f"Send UTR OR SCREENSHOT to {OWNER_USERNAME}"
-            )
+    f"""🇮🇳 UPI PAYMENT (INDIA)
+━━━━━━━━━━━━━━━━━━
+✨ Steps to Deposit:
+1. Copy the UPI ID below.
+2. Pay the amount using any UPI App (PhonePe, GPay, etc).
+3. Copy the Transaction ID (UTR) after success.
+4. Click 'Confirm Payment' and submit your ID.
+
+💳 UPI ID: {UPI_ID}
+👤 Owner: {OWNER_USERNAME}
+
+━━━━━━━━━━━━━━━━━━
+⚠️ Note: Please confirm payment and send screenshot for verification."""
+)
 
     elif text in ["🔵 FACEBOOK ₹25", "🔵 GOOGLE ₹25", "🔵 TWITTER ₹25", "🔵 GUEST ₹20"]:
         t = ("facebook" if "FACEBOOK" in text else
@@ -550,6 +568,7 @@ app.add_handler(CommandHandler("approve", approve))
 app.add_handler(CommandHandler("stockstats", stock_stats))
 app.add_handler(CommandHandler("broadcast", broadcast))
 app.add_handler(MessageHandler(filters.PHOTO, get_file_id))  # 🔥 IMPORTANT
+app.add_handler(MessageHandler(filters.PHOTO, auto_screenshot_to_admin))
 app.add_handler(CallbackQueryHandler(payment_buttons))
 app.add_handler(MessageHandler(filters.PHOTO, payment_screenshot))
 # Message Handler
