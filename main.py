@@ -4,6 +4,10 @@ import sys
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
 from telegram.ext import MessageHandler, filters
+from PIL import Image
+import pytesseract
+import re
+from io import BytesIO
 
 # ================= CONFIG ================= #
 BOT_TOKEN = "8769768942:AAE9my7p64TxDgi4vGbh-maJQVDVE9EVxjA"
@@ -13,6 +17,8 @@ OWNER_USERNAME = "@ARPANMODX"
 UPI_ID = "7908684711@fam"
 QR_IMAGE_PATH = "upi_qr.png"
 REF_BONUS = 1  # ₹1 per referral
+pending_payments = {}
+payment_history = []
 
 # ================= DATABASE ================= #
 conn = sqlite3.connect("bot.db", check_same_thread=False)
@@ -221,63 +227,71 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     # 📸 Get File ID from image
 # 👇 ADD THIS FUNCTION
-async def get_file_id(update, context):
-    if update.message and update.message.photo:
-        file_id = update.message.photo[-1].file_id
-        await update.message.reply_text(f"FILE ID:\n{file_id}")
-        print(file_id)
-        
-   pending_payments = {} 
-   async def payment_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def capture_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
+    text = update.message.text
 
-    if update.message.photo:
-        file_id = update.message.photo[-1].file_id
+    if text.isdigit():
+        pending_payments[uid] = {
+            "amount": int(text),
+            "photo": None,
+            "status": "waiting_screenshot"
+        }
 
-        pending_payments[uid] = file_id
+        await update.message.reply_text("📸 Now send payment screenshot")
+        async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    uid = user.id
 
-        keyboard = InlineKeyboardMarkup([
-            [InlineKeyboardButton("✅ APPROVE", callback_data=f"approve_{uid}")],
-            [InlineKeyboardButton("❌ REJECT", callback_data=f"reject_{uid}")]
-        ])
-
-        await context.bot.send_photo(
-            chat_id=ADMIN_ID,
-            photo=file_id,
-            caption=f"💰 Payment Request\nUser: {uid}",
-            reply_markup=keyboard
-        )
-
-        await update.message.reply_text("✅ Sent to admin for approval")
-       
-         async def payment_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    data = query.data
-
-    if query.from_user.id != ADMIN_ID:
+    if uid not in pending_payments:
+        await update.message.reply_text("⚠️ First send amount")
         return
 
-    uid = int(data.split("_")[1])
-
-    if "approve" in data:
-        add_balance(uid, 50)
-        await context.bot.send_message(uid, "✅ Payment Approved ₹50 added")
-        await query.edit_message_caption("✅ Approved")
-
-    elif "reject" in data:
-        await context.bot.send_message(uid, "❌ Payment Rejected")
-        await query.edit_message_caption("❌ Rejected")
-        
-        async def auto_screenshot_to_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-
     photo = update.message.photo[-1].file_id
+    file = await context.bot.get_file(photo)
+    image_bytes = await file.download_as_bytearray()
+
+    # 🧠 AI OCR (extract text)
+    img = Image.open(BytesIO(image_bytes))
+    text = pytesseract.image_to_string(img)
+
+    # 💰 detect amount from image
+    match = re.findall(r"\d+", text)
+    detected_amount = int(match[0]) if match else None
+
+    user_amount = pending_payments[uid]["amount"]
+
+    pending_payments[uid]["photo"] = photo
+    pending_payments[uid]["detected"] = detected_amount
+
+    # ⚠️ fraud check
+    warning = ""
+    if detected_amount and detected_amount != user_amount:
+        warning = f"⚠️ Mismatch detected (User: ₹{user_amount}, AI: ₹{detected_amount})"
+
+    keyboard = [
+        [
+            InlineKeyboardButton("✅ Approve", callback_data=f"approve_{uid}"),
+            InlineKeyboardButton("❌ Reject", callback_data=f"reject_{uid}")
+        ]
+    ]
 
     await context.bot.send_photo(
         chat_id=ADMIN_ID,
         photo=photo,
-        caption=f"📸 Screenshot\n\n🆔 ID: {user.id}\n👤 @{user.username}"
+        caption=f"""📸 PAYMENT REQUEST
+
+🆔 User: {uid}
+💰 Amount: ₹{user_amount}
+
+🤖 AI Detected: {detected_amount}
+{warning}
+""",
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
+
+    await update.message.reply_text("✅ Sent for admin verification WAIT FEW MINUTE AFTER ADMIN APPROVAL AUTO ADDED FUNDS")
+    
 # ================= COMMANDS ================= #
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cur.execute("SELECT COUNT(*) FROM users")
@@ -315,35 +329,38 @@ elif text == "🟡 STOCK":
     )
     if stock_count(t) <= 2:
     await update.message.reply_text("⚠️ Only few left!")
+    
+elif text == "🟢 ADD FUNDS":
+    if os.path.exists(QR_IMAGE_PATH):
+        with open(QR_IMAGE_PATH, "rb") as photo:
+            await update.message.reply_photo(
+                photo=photo,
+                caption=f"""💰 Scan & Pay
 
-    elif text == "🟢 ADD FUNDS":
-        if os.path.exists(QR_IMAGE_PATH):
-            with open(QR_IMAGE_PATH, "rb") as photo:
-                await update.message.reply_photo(
-                    photo=photo,
-                    caption=(
-                        f"💰 Scan & Pay\n\n"
-                        f"👤 Owner: {OWNER_USERNAME}\n"
-                        f"UPI: {UPI_ID}\n\n"
-                        f"Send UTR OR SCREENSHOT to {OWNER_USERNAME}"
-                    )
-                )
-        else:
-            await update.message.reply_text(
-    f"""🇮🇳 UPI PAYMENT (INDIA)
+👤 Owner: {OWNER_USERNAME}
+💳 UPI: {UPI_ID}
+
+━━━━━━━━━━━━━━━━━━
+📩 After payment:
+Send UTR or screenshot to {OWNER_USERNAME}
+"""
+            )
+    else:
+        await update.message.reply_text(
+            f"""🇮🇳 UPI PAYMENT (INDIA)
 ━━━━━━━━━━━━━━━━━━
 ✨ Steps to Deposit:
-1. Copy the UPI ID below.
-2. Pay the amount using any UPI App (PhonePe, GPay, etc).
-3. Copy the Transaction ID (UTR) after success.
-4. Click 'Confirm Payment' and submit your ID.
+1. Copy the UPI ID below
+2. Pay using any UPI app (GPay / PhonePe / Paytm)
+3. Save UTR (Transaction ID)
+4. Send screenshot or UTR to {OWNER_USERNAME}
 
 💳 UPI ID: {UPI_ID}
 👤 Owner: {OWNER_USERNAME}
 
 ━━━━━━━━━━━━━━━━━━
-⚠️ Note: Please confirm payment and send screenshot for verification."""
-)
+⚠️ Note: Payment will be verified before adding balance."""
+        )
 
     elif text in ["🔵 FACEBOOK ₹25", "🔵 GOOGLE ₹25", "🔵 TWITTER ₹25", "🔵 GUEST ₹20"]:
         t = ("facebook" if "FACEBOOK" in text else
@@ -573,6 +590,6 @@ app.add_handler(CallbackQueryHandler(payment_buttons))
 app.add_handler(MessageHandler(filters.PHOTO, payment_screenshot))
 # Message Handler
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
-
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, capture_text))
 print("Bot running...")
 app.run_polling()
