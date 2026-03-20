@@ -188,54 +188,31 @@ awaiting_promo = set()  # users waiting to send promo code
 # ✅ REPLACE START FUNCTION HERE
 # 🔹 Start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
-
     photo_url = "https://i.ibb.co/zTzhdcD/file-000000092ec72089143935e095f0d3e.png"
 
     caption = (
-        """🔥 *WELCOME TO ARPAN MODX STORE* 🔥
+        "🔥 *WELCOME TO ARPAN MODX STORE* 🔥\n\n"
+        "━━━━━━━━━━━━━━━\n"
+        "⚡ Instant Delivery\n"
+        "🔒 100% Secure\n"
+        "💎 Premium Services\n"
+        "━━━━━━━━━━━━━━━\n\n"
+        "🛒 Buy Now • Fast Delivery • Trusted"
+    )
 
-━━━━━━━━━━━━━━━
-⚡ Instant Delivery  
-🔒 100% Secure  
-💎 Premium Services  
-━━━━━━━━━━━━━━━
-
-🛒 Buy Now • Fast Delivery • Trusted"""
-)
     keyboard = [
         [InlineKeyboardButton("🛒 Buy Now", url="https://t.me/ARPANMODX")],
         [InlineKeyboardButton("📩 Contact Owner", url="https://t.me/ARPANMODX")]
-    keyboard = [
-        [InlineKeyboardButton("🚀 Start Now", callback_data="start_btn")]
     ]
+
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await context.bot.send_photo(
-        chat_id=chat_id,
+    await update.message.reply_photo(
         photo=photo_url,
         caption=caption,
         parse_mode="Markdown",
         reply_markup=reply_markup
     )
-
-# 🔹 Button click handler
-async def button_click(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-
-    if query.data == "start_btn":
-        await query.message.reply_text(
-            """🔥 *WELCOME TO ARPAN MODX STORE* 🔥
-
-━━━━━━━━━━━━━━━
-⚡ Instant Delivery  
-🔒 100% Secure  
-💎 Premium Services  
-━━━━━━━━━━━━━━━
-
-🛒 Buy Now • Fast Delivery • Trusted"""
-        )     
 
     # 📸 Get File ID from image
 # 👇 ADD THIS FUNCTION
@@ -328,19 +305,43 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     uid = update.effective_user.id
 
-    if text == "🟡 MY BALANCE":
-        await update.message.reply_text(f"💰 Balance: ₹{balance(uid)}")
-
+   if text == "🟡 MY BALANCE":
+    await update.message.reply_text(
+        f"💰 *WALLET DASHBOARD*\n\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"💎 Balance: *₹{balance(uid)}*\n"
+        f"━━━━━━━━━━━━━━━━━━\n\n"
+        f"🛒 Ready to shop?\n"
+        f"⚡ Buy premium accounts instantly!\n\n"
+        f"🔥 Thank you for using our service ❤️",
+        parse_mode="Markdown"
+    )
 elif text == "🟡 STOCK":
     await update.message.reply_text(
-        f"📦 STOCK STATUS\n\n"
+        f"📦 *STOCK STATUS*\n\n"
+        
         f"🔵 Facebook → Available: {stock_count('facebook')} | Sold: {sold_count('facebook')}\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        
         f"🔵 Google → Available: {stock_count('google')} | Sold: {sold_count('google')}\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        
         f"🔵 Twitter → Available: {stock_count('twitter')} | Sold: {sold_count('twitter')}\n"
-        f"🔵 Guest → Available: {stock_count('guest')} | Sold: {sold_count('guest')}"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        
+        f"🔵 Guest → Available: {stock_count('guest')} | Sold: {sold_count('guest')}\n"
+        f"━━━━━━━━━━━━━━━━━━\n\n"
+        
+        f"⚠️ *Only few left!*\n\n"
+        
+        f"💰 *SPECIAL OFFER*\n"
+        f"👉 If you buy 10 accounts,\n"
+        f"you only pay *₹200*\n\n"
+        
+        f"🔥 Hurry up before stock ends!"
+        ,
+        parse_mode="Markdown"
     )
-    if stock_count(t) <= 2:
-    await update.message.reply_text("⚠️ Only few left!")
     
 elif text == "🟢 ADD FUNDS":
     if os.path.exists(QR_IMAGE_PATH):
@@ -380,12 +381,31 @@ elif text == "🟢 ADD FUNDS":
              "guest")
 
         if balance(uid) < PRICES[t]:
-            await update.message.reply_text("❌ Not enough balance")
-            return
+    await update.message.reply_text(
+        "❌ *INSUFFICIENT BALANCE*\n\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "💰 Your wallet balance is too low\n"
+        "⚡ Please add funds to continue\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "👉 Use *ADD FUNDS* to recharge your wallet",
+        parse_mode="Markdown"
+    )
+    return
 
-        acc = get_stock(t)
+acc = get_stock(t)
+
 if not acc:
-    await update.message.reply_text("❌ Out of stock")
+    await update.message.reply_text(
+        "❌ *OUT OF STOCK*\n\n"
+        "━━━━━━━━━━━━━━━━━━\n"
+        "😔 This item is currently unavailable\n"
+        "📦 All accounts are sold out\n"
+        "━━━━━━━━━━━━━━━━━━\n\n"
+        "🔔 Please check back later\n"
+        "🔥 New stock will be added soon!",
+        parse_mode="Markdown"
+    )
+    return
     return
 
 deduct(uid, PRICES[t])
@@ -414,7 +434,7 @@ Price: ₹{PRICES[t]}
 
     elif text == "🟣 PROMO CODE":
         awaiting_promo.add(uid)
-        await update.message.reply_text("💌 Send your promo code now:")
+        await update.message.reply_text("💌 Send your promo code now: and luck to win 1-1000 rupees")
 
     elif text == "⭐ PAID PUSH⭐":
         kb = [
@@ -454,22 +474,31 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         cur.execute("SELECT amount, max_uses, used FROM promocodes WHERE code=?", (code,))
         row = cur.fetchone()
         if not row:
-            await update.message.reply_text("❌ Invalid promo code")
+            await update.message.reply_text("❌ Invalid promo code if you want promo code then contact admin @ARPANMLDX")
             return
         amount, max_uses, used = row
         if used >= max_uses:
-            await update.message.reply_text("❌ Promo code expired")
+            await update.message.reply_text("❌ Promo code expired if you want promo code then contact admin @ARPANMLDX")
             return
         cur.execute("SELECT 1 FROM promo_used WHERE user_id=? AND code=?", (uid, code))
         if cur.fetchone():
-            await update.message.reply_text("❌ You have already used this promo code")
+            await update.message.reply_text("❌ You have already used this promo code if you want promo code then contact admin @ARPANMLDX")
             return
         add_balance(uid, amount)
         cur.execute("UPDATE promocodes SET used=used+1 WHERE code=?", (code,))
         cur.execute("INSERT INTO promo_used VALUES (?,?)", (uid, code))
         conn.commit()
-        await update.message.reply_text(f"✅ Promo applied! ₹{amount} added to your balance")
-        return
+        await update.message.reply_text(
+    f"🎉 *PROMO CODE APPLIED SUCCESSFULLY!*\n\n"
+    f"━━━━━━━━━━━━━━━━━━\n"
+    f"💰 Amount Added: *₹{amount}*\n"
+    f"💎 Bonus credited to your wallet\n"
+    f"━━━━━━━━━━━━━━━━━━\n\n"
+    f"🛒 You can now use your balance to buy accounts\n"
+    f"🔥 Enjoy fast & secure shopping!",
+    parse_mode="Markdown"
+)
+return
 
     # Otherwise, handle as normal menu
     await menu(update, context)
