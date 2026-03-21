@@ -348,19 +348,21 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     # ===== FUNCTIONS =====
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    ...
-
-async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    ...
-
-# ✅ PUT HERE
 async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # screenshot code here
     user = update.effective_user
     uid = user.id
 
     if uid not in pending_payments:
-        await update.message.reply_text("⚠️ Send amount first")
+        await update.message.reply_text(
+            """⚠️ *NO PAYMENT FOUND*
+
+━━━━━━━━━━━━━━━
+💡 Please enter *amount first*
+📸 Then send screenshot
+━━━━━━━━━━━━━━━""",
+            parse_mode="Markdown"
+        )
         return
 
     # ⏳ TIMEOUT CHECK
@@ -368,7 +370,13 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pending_payments.pop(uid, None)
 
         await update.message.reply_text(
-            "⏳ Payment expired. Please start again."
+            """⏳ *PAYMENT EXPIRED*
+
+━━━━━━━━━━━━━━━
+⚠️ Time limit exceeded (5 minutes)
+💳 Please start again
+━━━━━━━━━━━━━━━""",
+            parse_mode="Markdown"
         )
         return
 
@@ -377,7 +385,7 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     photo = update.message.photo[-1].file_id
 
-    # 🤖 OCR
+    # 🤖 OCR AI
     file = await context.bot.get_file(photo)
     image_bytes = await file.download_as_bytearray()
 
@@ -389,11 +397,12 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_amount = pending_payments[uid]["amount"]
 
+    # ⚠️ Smart Warning
     warning = ""
     if detected_amount == 0:
-        warning = "⚠️ AI could not detect amount"
+        warning = "⚠️ *AI could not detect amount clearly*"
     elif detected_amount != user_amount:
-        warning = f"⚠️ Mismatch (User ₹{user_amount} / AI ₹{detected_amount})"
+        warning = f"⚠️ *Mismatch!* (User ₹{user_amount} / AI ₹{detected_amount})"
 
     keyboard = InlineKeyboardMarkup([
         [
@@ -402,27 +411,121 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ]
     ])
 
+    # 👑 ADMIN VIEW (PREMIUM)
     await context.bot.send_photo(
         chat_id=ADMIN_ID,
         photo=photo,
-        caption=f"""📸 PAYMENT REQUEST
+        caption=f"""🔥 *NEW PAYMENT REQUEST*
 
-👤 @{user.username if user.username else uid}
-🆔 {uid}
-💰 ₹{user_amount}
-🤖 AI ₹{detected_amount}
+━━━━━━━━━━━━━━━
+👤 *User:* @{user.username if user.username else 'NoUsername'}
+🆔 *User ID:* `{uid}`
+💰 *Amount:* ₹{user_amount}
+🤖 *AI Detected:* ₹{detected_amount}
+━━━━━━━━━━━━━━━
 
 {warning}
-""",
+
+⚡ *Choose action below 👇*""",
+        parse_mode="Markdown",
         reply_markup=keyboard
     )
 
-    await update.message.reply_text("✅ Sent to admin for approval")
+    # 👤 USER CONFIRMATION (PREMIUM)
+    await update.message.reply_text(
+        """✅ *PAYMENT SUBMITTED*
 
+━━━━━━━━━━━━━━━
+🕒 Waiting for admin approval
+💰 Balance will be updated soon
+━━━━━━━━━━━━━━━
 
+⚡ Please wait patiently""",
+        parse_mode="Markdown"
+    )    ...
+
+# 👇 SECOND FUNCTION (NOT INSIDE ABOVE)
 async def payment_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    ...
-    
+    # approve/reject code here
+    query = update.callback_query
+    data = query.data
+
+    await query.answer()
+
+    if query.from_user.id != ADMIN_ID:
+        return
+
+    uid = int(data.split("_")[1])
+
+    if uid not in pending_payments:
+        return
+
+    amount = pending_payments[uid]["amount"]
+
+    # ✅ APPROVE
+    if data.startswith("approve"):
+        add_balance(uid, amount)
+
+        # 👤 USER MESSAGE (PREMIUM)
+        await context.bot.send_message(
+            uid,
+            f"""💎 *PAYMENT SUCCESSFUL*
+
+━━━━━━━━━━━━━━━
+💰 *Amount Added:* ₹{amount}
+🏦 *Wallet Updated Successfully*
+━━━━━━━━━━━━━━━
+
+🚀 *You can now purchase instantly!*
+🔥 Thank you for trusting us""",
+            parse_mode="Markdown"
+        )
+
+        # 👑 ADMIN UPDATE (PREMIUM)
+        await query.edit_message_caption(
+            f"""✅ *PAYMENT APPROVED*
+
+━━━━━━━━━━━━━━━
+💰 Amount: ₹{amount}
+📊 Status: *SUCCESS*
+━━━━━━━━━━━━━━━
+
+⚡ Balance credited successfully""",
+            parse_mode="Markdown"
+        )
+
+        pending_payments.pop(uid, None)
+
+    # ❌ REJECT
+    elif data.startswith("reject"):
+        # 👤 USER MESSAGE (PREMIUM)
+        await context.bot.send_message(
+            uid,
+            """❌ *PAYMENT FAILED*
+
+━━━━━━━━━━━━━━━
+⚠️ Verification unsuccessful
+📸 Please send a *clear screenshot*
+━━━━━━━━━━━━━━━
+
+🔁 Try again carefully""",
+            parse_mode="Markdown"
+        )
+
+        # 👑 ADMIN UPDATE (PREMIUM)
+        await query.edit_message_caption(
+            """❌ *PAYMENT REJECTED*
+
+━━━━━━━━━━━━━━━
+📊 Status: *FAILED*
+━━━━━━━━━━━━━━━
+
+⚠️ User has been notified""",
+            parse_mode="Markdown"
+        )
+
+        pending_payments.pop(uid, None)
+ 
 # ================= CONTACT HANDLER ================= 
 async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
@@ -842,84 +945,7 @@ await update.message.reply_text(
 )
 
 # ================= ADMIN ================= #
-
-async def payment_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    data = query.data
-
-    await query.answer()
-
-    if query.from_user.id != ADMIN_ID:
-        return
-
-    uid = int(data.split("_")[1])
-
-    if uid not in pending_payments:
-        return
-
-    amount = pending_payments[uid]["amount"]
-
-    # ✅ APPROVE
-    if data.startswith("approve"):
-        add_balance(uid, amount)
-
-        await context.bot.send_message(
-            uid,
-            f"""💎 *PAYMENT SUCCESSFUL*
-
-━━━━━━━━━━━━━━━
-💰 *Amount Added:* ₹{amount}
-🏦 *Wallet Updated Successfully*
-━━━━━━━━━━━━━━━
-
-🚀 *You can now purchase items instantly!*
-
-🔥 Thank you for choosing our service""",
-            parse_mode="Markdown"
-        )
-
-        await query.edit_message_caption(
-            f"""✅ *PAYMENT APPROVED*
-
-━━━━━━━━━━━━━━━
-💰 Amount: ₹{amount}
-📊 Status: *SUCCESS*
-━━━━━━━━━━━━━━━
-
-⚡ Balance credited to user""",
-            parse_mode="Markdown"
-        )
-
-        pending_payments.pop(uid, None)
-
-    # ❌ REJECT
-    elif data.startswith("reject"):
-        await context.bot.send_message(
-            uid,
-            """❌ *PAYMENT FAILED*
-
-━━━━━━━━━━━━━━━
-⚠️ Payment could not be verified
-📸 Please send a *clear screenshot*
-━━━━━━━━━━━━━━━
-
-🔁 Try again after checking details""",
-            parse_mode="Markdown"
-        )
-
-        await query.edit_message_caption(
-            """❌ *PAYMENT REJECTED*
-
-━━━━━━━━━━━━━━━
-📊 Status: *FAILED*
-━━━━━━━━━━━━━━━
-
-⚠️ User notified""",
-            parse_mode="Markdown"
-        )
-
-        pending_payments.pop(uid, None)
-        
+    
 if query.from_user.id != ADMIN_ID:
     await context.bot.send_message(
         ADMIN_ID,
@@ -1064,7 +1090,7 @@ app.add_handler(CallbackQueryHandler(payment_buttons))
 
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
-app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, handle_screenshot))
+app.add_handler(MessageHandler(filters.PHOTO, handle_screenshot))
 
 app.add_handler(MessageHandler(filters.CONTACT, contact_handler))
 print("✅ Bot running...")
