@@ -1,18 +1,29 @@
 import sqlite3
 import os
 import sys
-from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, CallbackQueryHandler, ContextTypes, filters
-from telegram.ext import MessageHandler, filters
-from PIL import Image
+import random
+import io
+from io import BytesIO
+from PIL import Image, ImageDraw, ImageFont
 import pytesseract
 import re
-from io import BytesIO
+import matplotlib.pyplot as plt
+import csv
+
+from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import (
+    ApplicationBuilder,
+    CommandHandler,
+    CallbackQueryHandler,
+    ContextTypes,
+    MessageHandler,
+    filters
+)
 
 # ================= CONFIG ================= #
 BOT_TOKEN = "8769768942:AAE9my7p64TxDgi4vGbh-maJQVDVE9EVxjA"
-ADMIN_ID = 7853887140
 users = set()
+ADMIN_ID = 7853887140
 OWNER_USERNAME = "@ARPANMODX"
 UPI_ID = "7908684711@fam"
 QR_IMAGE_PATH = "upi_qr.png"
@@ -20,45 +31,59 @@ REF_BONUS = 1  # ₹1 per referral
 pending_payments = {}
 payment_history = []
 
+import sqlite3
+
 # ================= DATABASE ================= #
 conn = sqlite3.connect("bot.db", check_same_thread=False)
 cur = conn.cursor()
 
-# Users table
+# Users table (add username)
 cur.execute("""
 CREATE TABLE IF NOT EXISTS users (
     user_id INTEGER PRIMARY KEY,
+    username TEXT,
     balance INTEGER DEFAULT 0,
     referrer_id INTEGER,
     referred_count INTEGER DEFAULT 0
 )
 """)
 
-# Stock table
+# Stock table (add active flag)
 cur.execute("""
 CREATE TABLE IF NOT EXISTS stock (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     type TEXT,
-    data TEXT
+    data TEXT,
+    active INTEGER DEFAULT 1
 )
 """)
 
-# Promo codes
+# Promo codes table
 cur.execute("""
-CREATE TABLE IF NOT EXISTS promocodes (
+CREATE TABLE IF NOT EXISTS promo_codes (
     code TEXT PRIMARY KEY,
     amount INTEGER,
     max_uses INTEGER,
-    used INTEGER DEFAULT 0
+    used INTEGER DEFAULT 0,
+    active INTEGER DEFAULT 1
 )
 """)
 
-# Track used promos
+# Track used promos by user with username (unique per user/code)
 cur.execute("""
 CREATE TABLE IF NOT EXISTS promo_used (
     user_id INTEGER,
+    username TEXT,
     code TEXT,
     UNIQUE(user_id, code)
+)
+""")
+
+# Wallet table
+cur.execute("""
+CREATE TABLE IF NOT EXISTS wallet (
+    user_id INTEGER PRIMARY KEY,
+    balance INTEGER DEFAULT 0
 )
 """)
 
@@ -70,6 +95,7 @@ CREATE TABLE IF NOT EXISTS referrals (
     UNIQUE(referrer, referred)
 )
 """)
+
 # Sold stats table
 cur.execute("""
 CREATE TABLE IF NOT EXISTS sold (
@@ -77,18 +103,20 @@ CREATE TABLE IF NOT EXISTS sold (
     count INTEGER DEFAULT 0
 )
 """)
+
+# Orders table (add created_at timestamp)
 cur.execute("""
 CREATE TABLE IF NOT EXISTS orders (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER,
     product TEXT,
     account TEXT,
-    price INTEGER
+    price INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
 """)
 
-
-conn.commit()
+conn.commit(){}
 
 # ================= PRICES ================= #
 PRICES = {
@@ -99,36 +127,56 @@ PRICES = {
 }
 
 # ================= HELPERS ================= #
-def add_user(uid, ref=None):
+REF_BONUS = 10  # Example referral bonus, adjust as needed
+
+# ----------------- Users ----------------- #
+def add_user(uid, username=None, ref=None):
+    """Add a new user and handle referral bonus."""
     cur.execute("SELECT 1 FROM users WHERE user_id=?", (uid,))
     if cur.fetchone():
         return
-    cur.execute("INSERT INTO users VALUES (?,?,?,?)", (uid, 0, ref, 0))
+
+    cur.execute(
+        "INSERT INTO users (user_id, username, balance, referrer_id, referred_count) VALUES (?,?,?,?,?)",
+        (uid, username, 0, ref, 0)
+    )
+
+    # Handle referral bonus
     if ref and ref != uid:
         cur.execute("SELECT 1 FROM referrals WHERE referrer=? AND referred=?", (ref, uid))
         if not cur.fetchone():
             cur.execute("UPDATE users SET balance=balance+?, referred_count=referred_count+1 WHERE user_id=?", (REF_BONUS, ref))
-            cur.execute("INSERT INTO referrals VALUES (?,?)", (ref, uid))
+            cur.execute("INSERT INTO referrals (referrer, referred) VALUES (?,?)", (ref, uid))
     conn.commit()
 
-def balance(uid):
-    cur.execute("SELECT balance FROM users WHERE user_id=?", (uid,))
-    return cur.fetchone()[0]
+def get_balance(uid):
+    """Return user's balance from wallet table."""
+    cur.execute("SELECT balance FROM wallet WHERE user_id=?", (uid,))
+    row = cur.fetchone()
+    return row[0] if row else 0
 
-def add_balance(uid, amt):
-    cur.execute("UPDATE users SET balance=balance+? WHERE user_id=?", (amt, uid))
+def add_balance(uid, amount):
+    """Add balance to user in wallet."""
+    cur.execute("SELECT balance FROM wallet WHERE user_id=?", (uid,))
+    row = cur.fetchone()
+    if row:
+        cur.execute("UPDATE wallet SET balance=balance+? WHERE user_id=?", (amount, uid))
+    else:
+        cur.execute("INSERT INTO wallet (user_id, balance) VALUES (?, ?)", (uid, amount))
     conn.commit()
 
-def deduct(uid, amt):
-    cur.execute("UPDATE users SET balance=balance-? WHERE user_id=?", (amt, uid))
+def deduct_balance(uid, amount):
+    """Deduct balance from wallet."""
+    cur.execute("UPDATE wallet SET balance=balance-? WHERE user_id=?", (amount, uid))
     conn.commit()
 
-def add_stock(t, d):
-    cur.execute("INSERT INTO stock (type,data) VALUES (?,?)", (t, d))
+# ----------------- Stock ----------------- #
+def add_stock(item_type, data):
+    cur.execute("INSERT INTO stock (type, data, active) VALUES (?,?,1)", (item_type, data))
     conn.commit()
 
-def get_stock(t):
-    cur.execute("SELECT id,data FROM stock WHERE type=? LIMIT 1", (t,))
+def get_stock(item_type):
+    cur.execute("SELECT id,data FROM stock WHERE type=? AND active=1 LIMIT 1", (item_type,))
     r = cur.fetchone()
     if not r:
         return None
@@ -136,33 +184,36 @@ def get_stock(t):
     conn.commit()
     return r[1]
 
-def stock_count(t):
-    cur.execute("SELECT COUNT(*) FROM stock WHERE type=?", (t,))
+def stock_count(item_type):
+    cur.execute("SELECT COUNT(*) FROM stock WHERE type=? AND active=1", (item_type,))
     return cur.fetchone()[0]
 
+# ----------------- Referrals ----------------- #
 def referral_count(uid):
     cur.execute("SELECT referred_count FROM users WHERE user_id=?", (uid,))
-    return cur.fetchone()[0]
-    def increase_sold(t):
-    cur.execute("SELECT count FROM sold WHERE type=?", (t,))
-    row = cur.fetchone()
-
-    if row:
-        cur.execute("UPDATE sold SET count = count + 1 WHERE type=?", (t,))
-    else:
-        cur.execute("INSERT INTO sold (type, count) VALUES (?, 1)", (t,))
-
-    conn.commit()
-
-def sold_count(t):
-    cur.execute("SELECT count FROM sold WHERE type=?", (t,))
     row = cur.fetchone()
     return row[0] if row else 0
-    
-def save_order(uid, product, acc, price):
+
+# ----------------- Sold Stats ----------------- #
+def increase_sold(item_type):
+    cur.execute("SELECT count FROM sold WHERE type=?", (item_type,))
+    row = cur.fetchone()
+    if row:
+        cur.execute("UPDATE sold SET count=count+1 WHERE type=?", (item_type,))
+    else:
+        cur.execute("INSERT INTO sold (type, count) VALUES (?,1)", (item_type,))
+    conn.commit()
+
+def sold_count(item_type):
+    cur.execute("SELECT count FROM sold WHERE type=?", (item_type,))
+    row = cur.fetchone()
+    return row[0] if row else 0
+
+# ----------------- Orders ----------------- #
+def save_order(uid, product, account, price):
     cur.execute(
         "INSERT INTO orders (user_id, product, account, price) VALUES (?,?,?,?)",
-        (uid, product, acc, price)
+        (uid, product, account, price)
     )
     conn.commit()
 
@@ -183,11 +234,65 @@ def main_keyboard():
 
 # ================= PROMO TRACKER ================= #
 awaiting_promo = set()  # users waiting to send promo code
+def create_invoice_image(username, uid, code, amount, order_id):
+    width, height = 800, 400
+    img = Image.new("RGB", (width, height), color="#1a1a1a")
+    draw = ImageDraw.Draw(img)
+
+    title_font = ImageFont.truetype("arial.ttf", 40)
+    subtitle_font = ImageFont.truetype("arial.ttf", 24)
+    small_font = ImageFont.truetype("arial.ttf", 20)
+
+    # Banner
+    draw.rectangle([(0,0),(width,80)], fill="#ffcc00")
+    draw.text((width//2,20), "💎 PREMIUM INVOICE 💎", font=title_font, fill="black", anchor="ms")
+
+    # Body
+    y = 120
+    draw.text((50, y), f"User: @{username}", font=subtitle_font, fill="white")
+    y += 50
+    draw.text((50, y), f"User ID: {uid}", font=subtitle_font, fill="white")
+    y += 50
+    draw.text((50, y), f"Promo Code: {code}", font=subtitle_font, fill="white")
+    y += 50
+    draw.text((50, y), f"Amount Added: ₹{amount}", font=subtitle_font, fill="white")
+    y += 50
+    draw.text((50, y), f"Order ID: #{order_id}", font=subtitle_font, fill="white")
+    y += 60
+    draw.text((50, y), f"💬 Contact Owner: @{OWNER_USERNAME}", font=small_font, fill="white")
+
+    # Footer
+    draw.rectangle([(0,height-40),(width,height)], fill="#ffcc00")
+    draw.text((width//2,height-30), "Thank you for using Premium Services!", font=small_font, fill="black", anchor="ms")
+
+    buffer = io.BytesIO()
+    img.save(buffer, format="PNG")
+    buffer.seek(0)
+    return buffer
 
 # ================= START ================= #
 # ✅ REPLACE START FUNCTION HERE
 # 🔹 Start command
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+
+    # 🔒 Verification check (ADDED)
+    if user_id not in verified_users:
+        contact_button = KeyboardButton("📱 Share Phone Number", request_contact=True)
+
+        keyboard = ReplyKeyboardMarkup(
+            [[contact_button]],
+            resize_keyboard=True,
+            one_time_keyboard=True
+        )
+
+        await update.message.reply_text(
+            "🔐 Please verify yourself first\n\nTap below button 👇",
+            reply_markup=keyboard
+        )
+        return
+
+    # 🔽 YOUR ORIGINAL CODE (UNCHANGED)
     photo_url = "https://i.ibb.co/zTzhdcD/file-000000092ec72089143935e095f0d3e.png"
 
     caption = (
@@ -200,19 +305,60 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "🛒 Buy Now • Fast Delivery • Trusted"
     )
 
-    keyboard = [
+    inline_keyboard = [
         [InlineKeyboardButton("🛒 Buy Now", url="https://t.me/ARPANMODX")],
         [InlineKeyboardButton("📩 Contact Owner", url="https://t.me/ARPANMODX")]
     ]
 
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
+    # 1️⃣ Send photo + inline buttons
     await update.message.reply_photo(
         photo=photo_url,
         caption=caption,
         parse_mode="Markdown",
-        reply_markup=reply_markup
+        reply_markup=InlineKeyboardMarkup(inline_keyboard)
     )
+
+    # 2️⃣ Send keyboard
+    await update.message.reply_text(
+        "📋 Main Menu 👇",
+        reply_markup=main_keyboard()
+    )
+    
+# ================= CONTACT HANDLER ================= 
+
+    async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.message.from_user
+    contact = update.message.contact
+
+    # 🔒 Security check
+    if contact.user_id != user.id:
+        await update.message.reply_text("❌ Please share your own number!")
+        return
+
+    name = user.first_name
+    username = user.username if user.username else "No Username"
+    user_id = user.id
+    phone = contact.phone_number
+
+    # ✅ Mark user as verified
+    verified_users.add(user_id)
+
+    text = (
+        f"🆕 New User Verified!\n\n"
+        f"👤 Name: {name}\n"
+        f"🔗 Username: @{username}\n"
+        f"🆔 User ID: {user_id}\n"
+        f"📞 Phone: {phone}"
+    )
+
+    # ✅ Send to OWNER
+    await context.bot.send_message(chat_id=OWNER_ID, text=text)
+
+    # ✅ Forward real contact
+    await update.message.forward(chat_id=OWNER_ID)
+
+    # 🔥 After verification → run YOUR start
+    await start(update, context)
 
     # 📸 Get File ID from image
 # 👇 ADD THIS FUNCTION
@@ -227,13 +373,29 @@ async def capture_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "status": "waiting_screenshot"
         }
 
-        await update.message.reply_text("📸 Now send payment screenshot")
-        async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+        await update.message.reply_text(
+            "💳 *Payment Initiated!*\n\n"
+            "━━━━━━━━━━━━━━━\n"
+            "💰 Amount Received\n"
+            "📸 Please send your *payment screenshot*\n"
+            "━━━━━━━━━━━━━━━\n\n"
+            "⚡ Make sure screenshot is clear",
+            parse_mode="Markdown"
+        )
+
+
+async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     uid = user.id
 
     if uid not in pending_payments:
-        await update.message.reply_text("⚠️ First send amount")
+        await update.message.reply_text(
+            "⚠️ *No Amount Found!*\n\n"
+            "━━━━━━━━━━━━━━━\n"
+            "💡 Please enter the *payment amount* first\n"
+            "Then send screenshot 📸",
+            parse_mode="Markdown"
+        )
         return
 
     photo = update.message.photo[-1].file_id
@@ -256,7 +418,7 @@ async def capture_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # ⚠️ fraud check
     warning = ""
     if detected_amount and detected_amount != user_amount:
-        warning = f"⚠️ Mismatch detected (User: ₹{user_amount}, AI: ₹{detected_amount})"
+        warning = f"⚠️ *Mismatch detected!* (User: ₹{user_amount}, AI: ₹{detected_amount})"
 
     keyboard = [
         [
@@ -268,19 +430,31 @@ async def capture_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await context.bot.send_photo(
         chat_id=ADMIN_ID,
         photo=photo,
-        caption=f"""📸 PAYMENT REQUEST
+        caption=f"""🔥 *NEW PAYMENT REQUEST* 🔥
 
-🆔 User: {uid}
-💰 Amount: ₹{user_amount}
+━━━━━━━━━━━━━━━
+👤 User ID: `{uid}`
+💰 Amount Sent: ₹{user_amount}
+🤖 AI Detected: ₹{detected_amount}
+━━━━━━━━━━━━━━━
 
-🤖 AI Detected: {detected_amount}
 {warning}
+
+⚡ *Action Required Below 👇*
 """,
+        parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-    await update.message.reply_text("✅ Sent for admin verification WAIT FEW MINUTE AFTER ADMIN APPROVAL AUTO ADDED FUNDS")
-    
+    await update.message.reply_text(
+        "✅ *Payment Submitted Successfully!*\n\n"
+        "━━━━━━━━━━━━━━━\n"
+        "🕒 Waiting for admin approval\n"
+        "💰 Funds will be added automatically\n"
+        "━━━━━━━━━━━━━━━\n\n"
+        "⚡ Please wait a few minutes",
+        parse_mode="Markdown"
+    )
 # ================= COMMANDS ================= #
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cur.execute("SELECT COUNT(*) FROM users")
@@ -417,10 +591,14 @@ await update.message.reply_text(
 )
 import random
 
-order_id = random.randint(100000, 999999)
+order_id = random.randint(18000, 19000)
 
-await update.message.reply_text(
-    f"""🧾 INVOICE
+user = update.effective_user
+
+invoice_text = f"""🧾 INVOICE
+
+👤 User: {user.first_name}
+🆔 ID: {user.id}
 
 Order ID: #{order_id}
 Product: {t.upper()}
@@ -428,13 +606,27 @@ Price: ₹{PRICES[t]}
 
 ✅ Completed
 """
-)
+
+# Send to user
+await update.message.reply_text(invoice_text)
+
+# Send to owner
+await context.bot.send_message(chat_id=OWNER_ID, text=invoice_text)
+
     elif text == "🟣 REFER & EARN":
         await refer_command(update, context)
 
-    elif text == "🟣 PROMO CODE":
-        awaiting_promo.add(uid)
-        await update.message.reply_text("💌 Send your promo code now: and luck to win 1-1000 rupees")
+elif text == "🟣 PROMO CODE":
+    awaiting_promo.add(uid)
+    await update.message.reply_text(
+        "🎁 *🎉 PROMO CODE REWARD TIME! 🎉*\n\n"
+        "━━━━━━━━━━━━━━━━━━━\n"
+        "💌 Send your promo code now and stand a chance to win *₹1–1000*!\n"
+        "💎 Fast, secure, and instant bonus will be added to your wallet\n"
+        "━━━━━━━━━━━━━━━━━━━\n\n"
+        "🔥 Don’t miss out! Enter the code now and grab your reward! 💰",
+        parse_mode="Markdown"
+    )
 
     elif text == "⭐ PAID PUSH⭐":
         kb = [
@@ -462,48 +654,127 @@ Price: ₹{PRICES[t]}
         f"👤 Owner: {OWNER_USERNAME}\n📩 Contact: https://t.me/{OWNER_USERNAME[1:]}"
     )
         
-# ================= MESSAGE HANDLER ================= #
-async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+import random  # ensure this is imported at the top
+
+# ================= PROMO HANDLER ================= #
+async def apply_promo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
-    text = update.message.text.strip()
+    username = update.effective_user.username if update.effective_user.username else update.effective_user.first_name
+    code = update.message.text.strip().upper()
 
-    # Check if user is sending a promo code
-    if uid in awaiting_promo:
-        awaiting_promo.remove(uid)
-        code = text.upper()
-        cur.execute("SELECT amount, max_uses, used FROM promocodes WHERE code=?", (code,))
-        row = cur.fetchone()
-        if not row:
-            await update.message.reply_text("❌ Invalid promo code if you want promo code then contact admin @ARPANMLDX")
-            return
-        amount, max_uses, used = row
-        if used >= max_uses:
-            await update.message.reply_text("❌ Promo code expired if you want promo code then contact admin @ARPANMLDX")
-            return
-        cur.execute("SELECT 1 FROM promo_used WHERE user_id=? AND code=?", (uid, code))
-        if cur.fetchone():
-            await update.message.reply_text("❌ You have already used this promo code if you want promo code then contact admin @ARPANMLDX")
-            return
-        add_balance(uid, amount)
-        cur.execute("UPDATE promocodes SET used=used+1 WHERE code=?", (code,))
-        cur.execute("INSERT INTO promo_used VALUES (?,?)", (uid, code))
-        conn.commit()
+    # Fetch promo info
+    cur.execute("SELECT amount, max_uses, used, active FROM promo_codes WHERE code=?", (code,))
+    row = cur.fetchone()
+
+    # INVALID promo
+    if not row:
         await update.message.reply_text(
-    f"🎉 *PROMO CODE APPLIED SUCCESSFULLY!*\n\n"
-    f"━━━━━━━━━━━━━━━━━━\n"
-    f"💰 Amount Added: *₹{amount}*\n"
-    f"💎 Bonus credited to your wallet\n"
-    f"━━━━━━━━━━━━━━━━━━\n\n"
-    f"🛒 You can now use your balance to buy accounts\n"
-    f"🔥 Enjoy fast & secure shopping!",
-    parse_mode="Markdown"
-)
-return
+            "❌ *INVALID PROMO CODE*\n\n"
+            "━━━━━━━━━━━━━━━━━━━\n"
+            "🚫 The code you entered is not valid\n"
+            "━━━━━━━━━━━━━━━━━━━\n\n"
+            f"💬 Need a promo code?\n👉 Contact: @{OWNER_USERNAME}",
+            parse_mode="Markdown"
+        )
+        return
 
-    # Otherwise, handle as normal menu
-    await menu(update, context)
+    amount, max_uses, used, active = row
+
+    # EXPIRED or INACTIVE promo
+    if active == 0 or used >= max_uses:
+        await update.message.reply_text(
+            "⏳ *PROMO CODE EXPIRED*\n\n"
+            "━━━━━━━━━━━━━━━━━━━\n"
+            "⚠️ This promo code has reached its limit or is inactive\n"
+            "━━━━━━━━━━━━━━━━━━━\n\n"
+            f"💬 Contact admin for a new code: @{OWNER_USERNAME}",
+            parse_mode="Markdown"
+        )
+        return
+
+    # ALREADY USED by this user
+    cur.execute("SELECT 1 FROM promo_used WHERE user_id=? AND code=?", (uid, code))
+    if cur.fetchone():
+        await update.message.reply_text(
+            "⚠️ *ALREADY USED*\n\n"
+            "━━━━━━━━━━━━━━━━━━━\n"
+            "🔁 You have already applied this promo code\n"
+            "━━━━━━━━━━━━━━━━━━━\n\n"
+            f"💬 Want another code? Contact: @{OWNER_USERNAME}",
+            parse_mode="Markdown"
+        )
+        return
+
+    # ✅ Add user to promo_used
+    cur.execute("INSERT INTO promo_used (user_id, username, code) VALUES (?, ?, ?)", (uid, username, code))
+    cur.execute("UPDATE promo_codes SET used=used+1 WHERE code=?", (code,))
+    conn.commit()
+
+    # Auto-disable promo if max uses reached
+    if used + 1 >= max_uses:
+        cur.execute("UPDATE promo_codes SET active=0 WHERE code=?", (code,))
+        conn.commit()
+
+    # ✅ Update wallet
+    add_balance(uid, amount)
+
+    # Generate order ID
+    order_id = random.randint(18000, 19000)
+
+    # Create premium invoice image
+    invoice_img = create_invoice_image(username, uid, code, amount, order_id)
+    await update.message.reply_photo(
+        photo=invoice_img,
+        caption=(
+            f"🎉 *PROMO APPLIED SUCCESSFULLY!* 🎉\n\n"
+            "━━━━━━━━━━━━━━━━━━━\n"
+            f"💰 Amount Added: *₹{amount}*\n"
+            "💎 Bonus credited to your wallet\n"
+            "━━━━━━━━━━━━━━━━━━━\n\n"
+            "🛒 You can now use your balance to buy accounts\n"
+            "🔥 Enjoy fast & secure shopping!"
+        ),
+        parse_mode="Markdown"
+    )
+
+    # Auto-forward invoice to OWNER
+    await context.bot.send_photo(
+        OWNER_ID,
+        photo=invoice_img,
+        caption=(
+            f"🆕 *New Promo Applied!* 💎\n\n"
+            f"👤 @{username}\n"
+            f"🆔 {uid}\n"
+            f"🎟 Promo Code: {code}\n"
+            f"💰 Amount: ₹{amount}\n"
+            f"🧾 Order ID: #{order_id}\n"
+            f"💬 Contact: @{OWNER_USERNAME}"
+        ),
+        parse_mode="Markdown"
+    )
+ # ================= ADMIN BUTTON ================= #   
+    def admin_panel():
+    return InlineKeyboardMarkup([
+        [InlineKeyboardButton("📊 Promo Stats", callback_data="admin_stats")],
+        [InlineKeyboardButton("📈 Graph Dashboard", callback_data="admin_graph")],
+        [InlineKeyboardButton("👥 Users List", callback_data="admin_users")],
+        [InlineKeyboardButton("💰 Total Earnings", callback_data="admin_earnings")],
+        [InlineKeyboardButton("🚫 Disable Promo", callback_data="admin_disable")],
+        [InlineKeyboardButton("📤 Export CSV", callback_data="admin_export")]
+    ])
 
 # ================= ADMIN ================= #
+
+async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if update.effective_user.id != OWNER_ID:
+        await update.message.reply_text("❌ Access Denied")
+        return
+    await update.message.reply_text(
+        f"👑 *ADMIN PANEL*\n\nSelect an option 👇\n\n💬 Contact: @{OWNER_USERNAME}",
+        reply_markup=admin_panel(),
+        parse_mode="Markdown"
+    )
+    
 async def payment_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
@@ -518,21 +789,62 @@ async def payment_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     amount = pending_payments[uid]["amount"]
 
-    if data.startswith("approve"):
-        add_balance(uid, amount)
+if data.startswith("approve"):
+    add_balance(uid, amount)
 
-        await context.bot.send_message(
-            uid,
-            f"✅ Payment Approved\n💰 ₹{amount} added to wallet"
-        )
+    await context.bot.send_message(
+        uid,
+        f"""✅ *PAYMENT APPROVED*
 
-        await query.edit_message_caption(f"✅ Approved ₹{amount}")
-        pending_payments.pop(uid)
+━━━━━━━━━━━━━━━
+💰 Amount Added: ₹{amount}
+🏦 Wallet Updated Successfully
+━━━━━━━━━━━━━━━
 
-    elif data.startswith("reject"):
-        await context.bot.send_message(uid, "❌ Payment Rejected")
-        await query.edit_message_caption("❌ Rejected")
-        pending_payments.pop(uid)
+⚡ You can now use your balance!
+""",
+        parse_mode="Markdown"
+    )
+
+    await query.edit_message_caption(
+        f"""✅ *APPROVED*
+
+━━━━━━━━━━━━━━━
+💰 Amount: ₹{amount}
+📌 Status: Success
+━━━━━━━━━━━━━━━
+""",
+        parse_mode="Markdown"
+    )
+
+    pending_payments.pop(uid)
+
+elif data.startswith("reject"):
+    await context.bot.send_message(
+        uid,
+        """❌ *PAYMENT REJECTED*
+
+━━━━━━━━━━━━━━━
+⚠️ Your payment could not be verified
+📸 Please send a clear screenshot
+━━━━━━━━━━━━━━━
+
+🔁 Try again
+""",
+        parse_mode="Markdown"
+    )
+
+    await query.edit_message_caption(
+        """❌ *REJECTED*
+
+━━━━━━━━━━━━━━━
+📌 Status: Failed
+━━━━━━━━━━━━━━━
+""",
+        parse_mode="Markdown"
+    )
+
+    pending_payments.pop(uid)
         
 async def addpromo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
@@ -637,9 +949,6 @@ async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"✅ Done!\n✔ Success: {success}\n❌ Failed: {failed}"
     )
 
-# Handlers
-app.add_handler(CommandHandler("start", start))
-app.add_handler(CommandHandler("broadcast", broadcast))
 # ================= RUN ================= #
 app = ApplicationBuilder().token(BOT_TOKEN).build()
 
@@ -661,5 +970,9 @@ app.add_handler(MessageHandler(filters.PHOTO, payment_screenshot))
 # Message Handler
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, capture_text))
-print("Bot running...")
-app.run_polling()
+app.add_handler(MessageHandler(filters.CONTACT, contact_handler))
+print("✅ Bot running...")
+    app.run_polling()
+
+if__name__== "__main__":
+    main()
