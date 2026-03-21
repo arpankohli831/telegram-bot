@@ -4,11 +4,13 @@ import sys
 import random
 import io
 from io import BytesIO
+
 from PIL import Image, ImageDraw, ImageFont
 import pytesseract
 import re
 import matplotlib.pyplot as plt
 import csv
+import time  # newly added
 
 from telegram import Update, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
@@ -22,14 +24,14 @@ from telegram.ext import (
 
 # ================= CONFIG ================= #
 BOT_TOKEN = "8769768942:AAE9my7p64TxDgi4vGbh-maJQVDVE9EVxjA"
+pending_payments = {}
+payment_history = []
 users = set()
 ADMIN_ID = 7853887140
 OWNER_USERNAME = "@ARPANMODX"
 UPI_ID = "7908684711@fam"
 QR_IMAGE_PATH = "upi_qr.png"
 REF_BONUS = 1  # ₹1 per referral
-pending_payments = {}
-payment_history = []
 CHANNEL_LINK = "https://t.me/+qWBcAAqb33Q3MmE1"
 
 import sqlite3
@@ -344,6 +346,82 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "📋 Main Menu 👇",
         reply_markup=main_keyboard()
     )
+    # ===== FUNCTIONS =====
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    ...
+
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    ...
+
+# ✅ PUT HERE
+async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    uid = user.id
+
+    if uid not in pending_payments:
+        await update.message.reply_text("⚠️ Send amount first")
+        return
+
+    # ⏳ TIMEOUT CHECK
+    if time.time() - pending_payments[uid]["time"] > 300:
+        pending_payments.pop(uid, None)
+
+        await update.message.reply_text(
+            "⏳ Payment expired. Please start again."
+        )
+        return
+
+    if not update.message.photo:
+        return
+
+    photo = update.message.photo[-1].file_id
+
+    # 🤖 OCR
+    file = await context.bot.get_file(photo)
+    image_bytes = await file.download_as_bytearray()
+
+    img = Image.open(BytesIO(image_bytes))
+    text = pytesseract.image_to_string(img)
+
+    match = re.findall(r"\d+", text)
+    detected_amount = int(match[0]) if match else 0
+
+    user_amount = pending_payments[uid]["amount"]
+
+    warning = ""
+    if detected_amount == 0:
+        warning = "⚠️ AI could not detect amount"
+    elif detected_amount != user_amount:
+        warning = f"⚠️ Mismatch (User ₹{user_amount} / AI ₹{detected_amount})"
+
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton("✅ APPROVE", callback_data=f"approve_{uid}"),
+            InlineKeyboardButton("❌ REJECT", callback_data=f"reject_{uid}")
+        ]
+    ])
+
+    await context.bot.send_photo(
+        chat_id=ADMIN_ID,
+        photo=photo,
+        caption=f"""📸 PAYMENT REQUEST
+
+👤 @{user.username if user.username else uid}
+🆔 {uid}
+💰 ₹{user_amount}
+🤖 AI ₹{detected_amount}
+
+{warning}
+""",
+        reply_markup=keyboard
+    )
+
+    await update.message.reply_text("✅ Sent to admin for approval")
+
+
+async def payment_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    ...
     
 # ================= CONTACT HANDLER ================= 
 async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -380,109 +458,7 @@ async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 🔥 Go to start again
     await start(update, context)
 
-    # 📸 Get File ID from image
-# 👇 ADD THIS FUNCTION
-async def capture_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    uid = update.effective_user.id
-    text = update.message.text
 
-    if text.isdigit():
-        pending_payments[uid] = {
-            "amount": int(text),
-            "photo": None,
-            "status": "waiting_screenshot"
-        }
-
-        await update.message.reply_text(
-            "💳 *Payment Initiated!*\n\n"
-            "━━━━━━━━━━━━━━━\n"
-            "💰 Amount Received\n"
-            "📸 Please send your *payment screenshot*\n"
-            "━━━━━━━━━━━━━━━\n\n"
-            "⚡ Make sure screenshot is clear",
-            parse_mode="Markdown"
-        )
-
-
-async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-    uid = user.id
-
-    if uid not in pending_payments:
-        await update.message.reply_text(
-            "⚠️ *No Amount Found!*\n\n"
-            "━━━━━━━━━━━━━━━\n"
-            "💡 Please enter the *payment amount* first\n"
-            "Then send screenshot 📸",
-            parse_mode="Markdown"
-        )
-        return
-
-if not update.message.photo:
-    return
-
-photo = update.message.photo[-1].file_id
-    file = await context.bot.get_file(photo)
-    image_bytes = await file.download_as_bytearray()
-
-    # 🧠 AI OCR (extract text)
-    img = Image.open(BytesIO(image_bytes))
-    text = pytesseract.image_to_string(img)
-
-    # 💰 detect amount from image
-    match = re.findall(r"\d+", text)
-    detected_amount = int(match[0]) if match else 0
-
-    user_amount = pending_payments[uid]["amount"]
-
-    pending_payments[uid]["photo"] = photo
-    pending_payments[uid]["detected"] = detected_amount
-
-    # ⚠️ fraud check
-    warning = ""
-
-if detected_amount == 0:
-    warning = "⚠️ *AI could not detect amount clearly*"
-
-elif detected_amount != user_amount:
-    warning = f"⚠️ *Mismatch detected!* (User: ₹{user_amount}, AI: ₹{detected_amount})"
-
-    keyboard = [
-        [
-            InlineKeyboardButton("✅ Approve", callback_data=f"approve_{uid}"),
-            InlineKeyboardButton("❌ Reject", callback_data=f"reject_{uid}")
-        ]
-    ]
-
-    await context.bot.send_photo(
-        chat_id=ADMIN_ID,
-        photo=photo,
-        caption=f"""🔥 *NEW PAYMENT REQUEST* 🔥
-
-━━━━━━━━━━━━━━━
-👤 User: @{user.username if user.username else uid}
-🆔 ID: `{uid}`
-💰 Amount Sent: ₹{user_amount}
-🤖 AI Detected: ₹{detected_amount}
-━━━━━━━━━━━━━━━
-
-{warning}
-
-⚡ *Action Required Below 👇*
-""",
-        parse_mode="Markdown",
-        reply_markup=InlineKeyboardMarkup(keyboard)
-    )
-
-    await update.message.reply_text(
-        "✅ *Payment Submitted Successfully!*\n\n"
-        "━━━━━━━━━━━━━━━\n"
-        "🕒 Waiting for admin approval\n"
-        "💰 Funds will be added automatically\n"
-        "━━━━━━━━━━━━━━━\n\n"
-        "⚡ Please wait a few minutes",
-        parse_mode="Markdown"
-    )
 # ================= COMMANDS ================= #
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cur.execute("SELECT COUNT(*) FROM users")
@@ -503,7 +479,54 @@ async def update_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     os.execl(sys.executable, sys.executable, *sys.argv)
 
 # ================= MENU ================= #
+async def log_security(update: Update, context: ContextTypes.DEFAULT_TYPE, action="Tried Admin Command"):
+    user = update.effective_user
+
+    await context.bot.send_message(
+        chat_id=ADMIN_ID,
+        text=f"""🚨 *SECURITY ALERT*
+
+━━━━━━━━━━━━━━━
+👤 User: @{user.username if user.username else 'NoUsername'}
+🆔 ID: `{user.id}`
+⚠️ Action: {action}
+━━━━━━━━━━━━━━━
+
+🔒 Unauthorized access attempt detected""",
+        parse_mode="Markdown"
+    )
+
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    uid = update.effective_user.id
+text = update.message.text.strip()
+
+# 💰 PAYMENT AMOUNT INPUT
+if text.isdigit():
+    if uid in pending_payments:
+        await update.message.reply_text(
+            "⚠️ You already have a pending payment.\n📸 Send screenshot first."
+        )
+        return
+
+    pending_payments[uid] = {
+        "amount": int(text),
+        "photo": None,
+        "time": time.time()
+    }
+
+    await update.message.reply_text(
+        """💳 *PAYMENT INITIATED*
+
+━━━━━━━━━━━━━━━
+💰 Amount Accepted
+📸 Send Screenshot within *5 minutes*
+━━━━━━━━━━━━━━━
+
+⚡ After 5 min request expires""",
+        parse_mode="Markdown"
+    )
+    return
+     
     text = update.message.text
     uid = update.effective_user.id
 
@@ -824,7 +847,7 @@ async def payment_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
 
-    await query.answer()  # important (prevents loading issue)
+    await query.answer()
 
     if query.from_user.id != ADMIN_ID:
         return
@@ -842,26 +865,28 @@ async def payment_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await context.bot.send_message(
             uid,
-            f"""✅ *PAYMENT APPROVED*
+            f"""💎 *PAYMENT SUCCESSFUL*
 
 ━━━━━━━━━━━━━━━
-💰 Amount Added: ₹{amount}
-🏦 Wallet Updated Successfully
+💰 *Amount Added:* ₹{amount}
+🏦 *Wallet Updated Successfully*
 ━━━━━━━━━━━━━━━
 
-⚡ You can now use your balance!
-""",
+🚀 *You can now purchase items instantly!*
+
+🔥 Thank you for choosing our service""",
             parse_mode="Markdown"
         )
 
         await query.edit_message_caption(
-            f"""✅ *APPROVED*
+            f"""✅ *PAYMENT APPROVED*
 
 ━━━━━━━━━━━━━━━
 💰 Amount: ₹{amount}
-📌 Status: Success
+📊 Status: *SUCCESS*
 ━━━━━━━━━━━━━━━
-""",
+
+⚡ Balance credited to user""",
             parse_mode="Markdown"
         )
 
@@ -871,33 +896,38 @@ async def payment_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif data.startswith("reject"):
         await context.bot.send_message(
             uid,
-            """❌ *PAYMENT REJECTED*
+            """❌ *PAYMENT FAILED*
 
 ━━━━━━━━━━━━━━━
-⚠️ Your payment could not be verified
-📸 Please send a clear screenshot
+⚠️ Payment could not be verified
+📸 Please send a *clear screenshot*
 ━━━━━━━━━━━━━━━
 
-🔁 Try again
-""",
+🔁 Try again after checking details""",
             parse_mode="Markdown"
         )
 
         await query.edit_message_caption(
-            """❌ *REJECTED*
+            """❌ *PAYMENT REJECTED*
 
 ━━━━━━━━━━━━━━━
-📌 Status: Failed
+📊 Status: *FAILED*
 ━━━━━━━━━━━━━━━
-""",
+
+⚠️ User notified""",
             parse_mode="Markdown"
         )
 
         pending_payments.pop(uid, None)
         
-if uid in pending_payments:
-    await update.message.reply_text(
-        "⚠️ You already have a pending payment.\n📸 Send screenshot first."
+if query.from_user.id != ADMIN_ID:
+    await context.bot.send_message(
+        ADMIN_ID,
+        f"""🚨 *SECURITY ALERT*
+
+👤 User ID: {query.from_user.id}
+⚠️ Tried to use admin buttons""",
+        parse_mode="Markdown"
     )
     return        
         
@@ -955,8 +985,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # 🔥 Broadcast
 async def broadcast(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
-        await update.message.reply_text("❌ Admin only!")
-        return
+    await log_security(update, context, "Tried Admin Command")
+
+    await update.message.reply_text(
+        """🚫 *ACCESS DENIED*
+
+━━━━━━━━━━━━━━━
+🔒 Admin Only Feature
+❌ You are not authorized
+━━━━━━━━━━━━━━━""",
+        parse_mode="Markdown"
+    )
+    return
 
     success = 0
     failed = 0
@@ -1022,7 +1062,7 @@ app.add_handler(CommandHandler("broadcast", broadcast))
 app.add_handler(MessageHandler(filters.PHOTO, get_file_id))  # 🔥 IMPORTANT
 app.add_handler(CallbackQueryHandler(payment_buttons))
 
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, capture_text))
+app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
 
 app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, handle_screenshot))
 
