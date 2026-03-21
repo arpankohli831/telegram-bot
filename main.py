@@ -30,6 +30,7 @@ QR_IMAGE_PATH = "upi_qr.png"
 REF_BONUS = 1  # ₹1 per referral
 pending_payments = {}
 payment_history = []
+CHANNEL_LINK = "https://t.me/+qWBcAAqb33Q3MmE1"
 
 import sqlite3
 
@@ -115,6 +116,11 @@ CREATE TABLE IF NOT EXISTS orders (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
 """)
+cursor.execute("""
+ CREATE TABLE IF NOT EXISTS verified_users (
+    user_id INTEGER PRIMARY KEY
+)
+""")    
 
 conn.commit(){}
 
@@ -127,7 +133,7 @@ PRICES = {
 }
 
 # ================= HELPERS ================= #
-REF_BONUS = 10  # Example referral bonus, adjust as needed
+REF_BONUS = 1  # Example referral bonus, adjust as needed
 
 # ----------------- Users ----------------- #
 def add_user(uid, username=None, ref=None):
@@ -215,6 +221,15 @@ def save_order(uid, product, account, price):
         "INSERT INTO orders (user_id, product, account, price) VALUES (?,?,?,?)",
         (uid, product, account, price)
     )
+   
+def is_verified(user_id: int) -> bool:
+    cursor.execute("SELECT 1 FROM verified_users WHERE user_id = ?", (user_id,))
+    return cursor.fetchone() is not None
+
+
+def add_verified(user_id: int):
+    cursor.execute("INSERT OR IGNORE INTO verified_users (user_id) VALUES (?)", (user_id,))
+    
     conn.commit()
 
 # ================= KEYBOARD ================= #
@@ -276,8 +291,8 @@ def create_invoice_image(username, uid, code, amount, order_id):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
 
-    # 🔒 Verification check (ADDED)
-    if user_id not in verified_users:
+    # 🔒 Verification check
+    if not is_verified(user_id):
         contact_button = KeyboardButton("📱 Share Phone Number", request_contact=True)
 
         keyboard = ReplyKeyboardMarkup(
@@ -286,15 +301,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             one_time_keyboard=True
         )
 
+        # Optional join button
+        join_btn = InlineKeyboardMarkup([
+            [InlineKeyboardButton("📢 Join Channel (Optional)", url=CHANNEL_LINK)]
+        ])
+
         await update.message.reply_text(
             "🔐 Please verify yourself first\n\nTap below button 👇",
             reply_markup=keyboard
         )
+
+        await update.message.reply_text(
+            "📢 Join our channel for updates (optional)",
+            reply_markup=join_btn
+        )
         return
 
-    # 🔽 YOUR ORIGINAL CODE (UNCHANGED)
-    photo_url = "https://i.ibb.co/zTzhdcD/file-000000092ec72089143935e095f0d3e.png"
-
+    # ✅ AFTER VERIFIED (NO IMAGE)
     caption = (
         "🔥 *WELCOME TO ARPAN MODX STORE* 🔥\n\n"
         "━━━━━━━━━━━━━━━\n"
@@ -307,30 +330,27 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     inline_keyboard = [
         [InlineKeyboardButton("🛒 Buy Now", url="https://t.me/ARPANMODX")],
-        [InlineKeyboardButton("📩 Contact Owner", url="https://t.me/ARPANMODX")]
+        [InlineKeyboardButton("📩 Contact Owner", url="https://t.me/ARPANMODX")],
+        [InlineKeyboardButton("📢 Join Channel", url=CHANNEL_LINK)]
     ]
 
-    # 1️⃣ Send photo + inline buttons
-    await update.message.reply_photo(
-        photo=photo_url,
-        caption=caption,
+    await update.message.reply_text(
+        caption,
         parse_mode="Markdown",
         reply_markup=InlineKeyboardMarkup(inline_keyboard)
     )
 
-    # 2️⃣ Send keyboard
     await update.message.reply_text(
         "📋 Main Menu 👇",
         reply_markup=main_keyboard()
     )
     
 # ================= CONTACT HANDLER ================= 
-
-    async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.message.from_user
     contact = update.message.contact
 
-    # 🔒 Security check
+    # ❌ Fake number check
     if contact.user_id != user.id:
         await update.message.reply_text("❌ Please share your own number!")
         return
@@ -340,8 +360,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = user.id
     phone = contact.phone_number
 
-    # ✅ Mark user as verified
-    verified_users.add(user_id)
+    # ✅ SAVE IN DATABASE
+    add_verified(user_id)
 
     text = (
         f"🆕 New User Verified!\n\n"
@@ -351,13 +371,13 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"📞 Phone: {phone}"
     )
 
-    # ✅ Send to OWNER
+    # Send to owner
     await context.bot.send_message(chat_id=OWNER_ID, text=text)
 
-    # ✅ Forward real contact
+    # Forward contact
     await update.message.forward(chat_id=OWNER_ID)
 
-    # 🔥 After verification → run YOUR start
+    # 🔥 Go to start again
     await start(update, context)
 
     # 📸 Get File ID from image
