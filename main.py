@@ -533,100 +533,9 @@ async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 🔥 Go to start again
     await start(update, context)
-    #===================PREMIUM INVOICE================
 
-def generate_hollywood_invoice(username, user_id, product, price, balance, seller, email, password, payment_from, upi_id):
-    width, height = 1000, 700
-    frames = []
 
-    order_id = random.randint(18000, 19000)
-    txn_id = "TXN" + str(random.randint(100000000, 999999999))
-    time_now = datetime.now().strftime("%d %b %Y, %I:%M %p")
-
-    qr = qrcode.make(txn_id).resize((140,140))
-
-    try:
-        title = ImageFont.truetype("arial.ttf", 46)
-        bold = ImageFont.truetype("arial.ttf", 32)
-        text = ImageFont.truetype("arial.ttf", 24)
-    except:
-        title = bold = text = ImageFont.load_default()
-
-    # 🎬 TOTAL FRAMES
-    for frame in range(90):
-
-        base = Image.new("RGB", (width, height), "#000000")
-        img = base.filter(ImageFilter.GaussianBlur(12))
-        draw = ImageDraw.Draw(img)
-
-        # ✨ GOLD LIGHT SWEEP EFFECT
-        for i in range(width):
-            glow = int(150 * np.sin((i + frame*10) * 0.02))
-            color = (255, 200 + glow, 50)
-            draw.line([(i, 0), (i, 150)], fill=color)
-
-        # 🧾 GLASS CARD (fade + zoom)
-        scale = 0.9 + (frame / 300)
-        card_w = int(900 * scale)
-        card_h = int(480 * scale)
-
-        card = Image.new("RGBA", (card_w, card_h), (20, 20, 20, 200))
-        x = (width - card_w) // 2
-        y = 170
-
-        img.paste(card, (x, y), card)
-
-        draw = ImageDraw.Draw(img)
-
-        # 🎥 INTRO (first frames only logo)
-        if frame < 20:
-            draw.text((350, 300), "ARPANMODX", fill=(255,215,0), font=title)
-            frames.append(img)
-            continue
-
-        # HEADER
-        draw.text((330, 40), "ARPANMODX 8 LEVEL SELL BOT", fill=(255,215,0), font=bold)
-        draw.text((260, 90), "PAYMENT INVOICE", fill=(255,255,255), font=title)
-
-        # LEFT SIDE
-        y_pos = 200
-        gap = 45
-
-        draw.text((90, y_pos), f"User: {username}", fill="white", font=bold); y_pos+=gap
-        draw.text((90, y_pos), f"ID: {user_id}", fill="gray", font=text); y_pos+=gap
-        draw.text((90, y_pos), f"Order: #{order_id}", fill="white", font=text); y_pos+=gap
-        draw.text((90, y_pos), f"TXN: {txn_id}", fill=(255,215,0), font=text); y_pos+=gap
-        draw.text((90, y_pos), f"Product: {product}", fill="white", font=bold); y_pos+=gap
-        draw.text((90, y_pos), f"Price: ₹{price}", fill=(255,215,0), font=bold); y_pos+=gap
-        draw.text((90, y_pos), f"Payment: {payment_from}", fill=(255,215,0), font=text); y_pos+=gap
-        draw.text((90, y_pos), f"UPI: {mask_text(upi_id)}", fill="gray", font=text); y_pos+=gap
-        draw.text((90, y_pos), f"Seller: {seller}", fill=(255,215,0), font=text); y_pos+=gap
-        draw.text((90, y_pos), time_now, fill="gray", font=text)
-
-        # RIGHT SIDE
-        y2 = 240
-        draw.text((600, y2), "ACCOUNT", fill=(255,215,0), font=bold); y2+=60
-        draw.text((600, y2), mask_text(email), fill="gray", font=text); y2+=50
-        draw.text((600, y2), mask_text(password), fill="gray", font=text)
-
-        # QR
-        img.paste(qr, (750, 500))
-
-        # 🎬 FINAL SUCCESS EFFECT
-        if frame > 70:
-            draw.text((300, 600), "✔ PAYMENT SUCCESSFUL", fill=(0,255,100), font=bold)
-
-        frames.append(img)
-
-    # 🎥 CREATE VIDEO
-    clip = ImageSequenceClip([frame for frame in frames], fps=30)
-
-    file = f"hollywood_invoice_{user_id}.mp4"
-    clip.write_videofile(file, codec="libx264", fps=30)
-
-    return file
-
-# Generate order ID
+# Generate order ID#
     order_id = random.randint(18000, 19000)
 
 before_balance = user_balance
@@ -715,7 +624,21 @@ await update.message.reply_photo(photo=invoice_img)
     file = f"invoice_{uid}.png"
     img.save(file)
     return file
-
+    
+    # Send PROMO invoice to owner#
+await context.bot.send_photo(
+    chat_id=OWNER_ID,
+    photo=promo_invoice_img,
+    caption=(
+        f"🟡 PROMO TRANSACTION 💎\n\n"
+        f"👤 @{username}\n"
+        f"🆔 {uid}\n"
+        f"🧾 Order ID: #{order_id}\n"
+        f"💰 Amount: ₹{amount}\n"
+        f"💎 After: ₹{after_balance}"
+    ),
+    parse_mode="Markdown"
+)
 # ================= COMMANDS ================= #
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
     cur.execute("SELECT COUNT(*) FROM users")
@@ -732,7 +655,7 @@ async def refer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def update_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("♻️ Restarting bot...")
+    await update.message.reply_text("♻️ Restarting bot... press /start")
     os.execl(sys.executable, sys.executable, *sys.argv)
 
 # ================= MENU ================= #
@@ -899,6 +822,98 @@ increase_sold(t)  # 🔥 ADD THIS LINE
 await update.message.reply_text(
     f"✅ PURCHASED\n\n{acc}\nRemaining Balance: ₹{balance(uid)}"
 )
+    #===================PREMIUM INVOICE================#
+
+def generate_hollywood_invoice(username, user_id, product, price, balance, seller, email, password, payment_from, upi_id):
+    width, height = 1000, 700
+    frames = []
+
+    order_id = random.randint(18000, 19000)
+    txn_id = "TXN" + str(random.randint(100000000, 999999999))
+    time_now = datetime.now().strftime("%d %b %Y, %I:%M %p")
+
+    qr = qrcode.make(txn_id).resize((140,140))
+
+    try:
+        title = ImageFont.truetype("arial.ttf", 46)
+        bold = ImageFont.truetype("arial.ttf", 32)
+        text = ImageFont.truetype("arial.ttf", 24)
+    except:
+        title = bold = text = ImageFont.load_default()
+
+    # 🎬 TOTAL FRAMES
+    for frame in range(90):
+
+        base = Image.new("RGB", (width, height), "#000000")
+        img = base.filter(ImageFilter.GaussianBlur(12))
+        draw = ImageDraw.Draw(img)
+
+        # ✨ GOLD LIGHT SWEEP EFFECT
+        for i in range(width):
+            glow = int(150 * np.sin((i + frame*10) * 0.02))
+            color = (255, 200 + glow, 50)
+            draw.line([(i, 0), (i, 150)], fill=color)
+
+        # 🧾 GLASS CARD (fade + zoom)
+        scale = 0.9 + (frame / 300)
+        card_w = int(900 * scale)
+        card_h = int(480 * scale)
+
+        card = Image.new("RGBA", (card_w, card_h), (20, 20, 20, 200))
+        x = (width - card_w) // 2
+        y = 170
+
+        img.paste(card, (x, y), card)
+
+        draw = ImageDraw.Draw(img)
+
+        # 🎥 INTRO (first frames only logo)
+        if frame < 20:
+            draw.text((350, 300), "ARPANMODX", fill=(255,215,0), font=title)
+            frames.append(img)
+            continue
+
+        # HEADER
+        draw.text((330, 40), "ARPANMODX 8 LEVEL SELL BOT", fill=(255,215,0), font=bold)
+        draw.text((260, 90), "PAYMENT INVOICE", fill=(255,255,255), font=title)
+
+        # LEFT SIDE
+        y_pos = 200
+        gap = 45
+
+        draw.text((90, y_pos), f"User: {username}", fill="white", font=bold); y_pos+=gap
+        draw.text((90, y_pos), f"ID: {user_id}", fill="gray", font=text); y_pos+=gap
+        draw.text((90, y_pos), f"Order: #{order_id}", fill="white", font=text); y_pos+=gap
+        draw.text((90, y_pos), f"TXN: {txn_id}", fill=(255,215,0), font=text); y_pos+=gap
+        draw.text((90, y_pos), f"Product: {product}", fill="white", font=bold); y_pos+=gap
+        draw.text((90, y_pos), f"Price: ₹{price}", fill=(255,215,0), font=bold); y_pos+=gap
+        draw.text((90, y_pos), f"Payment: {payment_from}", fill=(255,215,0), font=text); y_pos+=gap
+        draw.text((90, y_pos), f"UPI: {mask_text(upi_id)}", fill="gray", font=text); y_pos+=gap
+        draw.text((90, y_pos), f"Seller: {seller}", fill=(255,215,0), font=text); y_pos+=gap
+        draw.text((90, y_pos), time_now, fill="gray", font=text)
+
+        # RIGHT SIDE
+        y2 = 240
+        draw.text((600, y2), "ACCOUNT", fill=(255,215,0), font=bold); y2+=60
+        draw.text((600, y2), mask_text(email), fill="gray", font=text); y2+=50
+        draw.text((600, y2), mask_text(password), fill="gray", font=text)
+
+        # QR
+        img.paste(qr, (750, 500))
+
+        # 🎬 FINAL SUCCESS EFFECT
+        if frame > 70:
+            draw.text((300, 600), "✔ PAYMENT SUCCESSFUL", fill=(0,255,100), font=bold)
+
+        frames.append(img)
+
+    # 🎥 CREATE VIDEO
+    clip = ImageSequenceClip([frame for frame in frames], fps=30)
+
+    file = f"hollywood_invoice_{user_id}.mp4"
+    clip.write_videofile(file, codec="libx264", fps=30)
+
+    return file
 # Send PURCHASE invoice to owner
 await context.bot.send_photo(
     chat_id=OWNER_ID,
@@ -1023,22 +1038,6 @@ awaiting_promo = set()  # users waiting to send promo code
 
     # ✅ Update wallet
     add_balance(uid, amount)
-
-    
-# Send PROMO invoice to owner
-await context.bot.send_photo(
-    chat_id=OWNER_ID,
-    photo=promo_invoice_img,
-    caption=(
-        f"🟡 PROMO TRANSACTION 💎\n\n"
-        f"👤 @{username}\n"
-        f"🆔 {uid}\n"
-        f"🧾 Order ID: #{order_id}\n"
-        f"💰 Amount: ₹{amount}\n"
-        f"💎 After: ₹{after_balance}"
-    ),
-    parse_mode="Markdown"
-)
 
 # ================= ADMIN BUTTON ================= #
 def admin_panel():
