@@ -418,7 +418,10 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    photo = update.message.photo[-1].file_id
+if not update.message.photo:
+    return
+
+photo = update.message.photo[-1].file_id
     file = await context.bot.get_file(photo)
     image_bytes = await file.download_as_bytearray()
 
@@ -428,7 +431,7 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 💰 detect amount from image
     match = re.findall(r"\d+", text)
-    detected_amount = int(match[0]) if match else None
+    detected_amount = int(match[0]) if match else 0
 
     user_amount = pending_payments[uid]["amount"]
 
@@ -437,8 +440,12 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ⚠️ fraud check
     warning = ""
-    if detected_amount and detected_amount != user_amount:
-        warning = f"⚠️ *Mismatch detected!* (User: ₹{user_amount}, AI: ₹{detected_amount})"
+
+if detected_amount == 0:
+    warning = "⚠️ *AI could not detect amount clearly*"
+
+elif detected_amount != user_amount:
+    warning = f"⚠️ *Mismatch detected!* (User: ₹{user_amount}, AI: ₹{detected_amount})"
 
     keyboard = [
         [
@@ -453,7 +460,8 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         caption=f"""🔥 *NEW PAYMENT REQUEST* 🔥
 
 ━━━━━━━━━━━━━━━
-👤 User ID: `{uid}`
+👤 User: @{user.username if user.username else uid}
+🆔 ID: `{uid}`
 💰 Amount Sent: ₹{user_amount}
 🤖 AI Detected: ₹{detected_amount}
 ━━━━━━━━━━━━━━━
@@ -857,7 +865,7 @@ async def payment_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
 
-        pending_payments.pop(uid)
+        pending_payments.pop(uid, None)
 
     # ❌ REJECT
     elif data.startswith("reject"):
@@ -885,7 +893,13 @@ async def payment_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
 
-        pending_payments.pop(uid)
+        pending_payments.pop(uid, None)
+        
+if uid in pending_payments:
+    await update.message.reply_text(
+        "⚠️ You already have a pending payment.\n📸 Send screenshot first."
+    )
+    return        
         
 async def addpromo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
@@ -1001,6 +1015,7 @@ app.add_handler(CommandHandler("update", update_bot))
 app.add_handler(CommandHandler("addpromo", addpromo))
 app.add_handler(CommandHandler("addstock", addstock_cmd))
 app.add_handler(CommandHandler("removestock", removestock_cmd))
+app.add_handler(CommandHandler("admin", admin))
 app.add_handler(CommandHandler("approve", approve))
 app.add_handler(CommandHandler("stockstats", stock_stats))
 app.add_handler(CommandHandler("broadcast", broadcast))
