@@ -303,7 +303,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         # Optional join button
         join_btn = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📢 Join Channel (Optional)", url=CHANNEL_LINK)]
+            [InlineKeyboardButton("📢 Join Channel ", url=CHANNEL_LINK)]
         ])
 
         await update.message.reply_text(
@@ -312,14 +312,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         await update.message.reply_text(
-            "📢 Join our channel for updates (optional)",
+            "📢 Join our channel for updates for more updates",
             reply_markup=join_btn
         )
         return
 
     # ✅ AFTER VERIFIED (NO IMAGE)
     caption = (
-        "🔥 *WELCOME TO ARPAN MODX STORE* 🔥\n\n"
+        "⚡🔥 *WELCOME TO ARPAN MODX STORE* 🔥⚡\n\n"
         "━━━━━━━━━━━━━━━\n"
         "⚡ Instant Delivery\n"
         "🔒 100% Secure\n"
@@ -772,8 +772,8 @@ async def apply_promo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ),
         parse_mode="Markdown"
     )
- # ================= ADMIN BUTTON ================= #   
-    def admin_panel():
+# ================= ADMIN BUTTON ================= #
+def admin_panel():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📊 Promo Stats", callback_data="admin_stats")],
         [InlineKeyboardButton("📈 Graph Dashboard", callback_data="admin_graph")],
@@ -783,21 +783,40 @@ async def apply_promo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         [InlineKeyboardButton("📤 Export CSV", callback_data="admin_export")]
     ])
 
+# =============== ADMIN BUTTON FUNCTION =================
+await update.message.reply_text(
+    f"""👑 *ADMIN CONTROL CENTER*
+
+━━━━━━━━━━━━━━━
+🔐 *Restricted Access Granted*
+⚡ Authorized Personnel Only
+━━━━━━━━━━━━━━━
+
+🧠 *Command Hub:*
+• 📊 System Analytics  
+• 📈 Performance Dashboard  
+• 👥 User Control Panel  
+• 💰 Revenue Insights  
+• 🚫 System Restrictions  
+• 📤 Data Management  
+
+━━━━━━━━━━━━━━━
+🛡 *Admin:* @{OWNER_USERNAME}
+🟢 *System Status:* Fully Operational
+━━━━━━━━━━━━━━━
+
+⚙️ *Execute your command below* 👇""",
+    reply_markup=admin_panel(),
+    parse_mode="Markdown"
+)
+
 # ================= ADMIN ================= #
 
-async def admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if update.effective_user.id != OWNER_ID:
-        await update.message.reply_text("❌ Access Denied")
-        return
-    await update.message.reply_text(
-        f"👑 *ADMIN PANEL*\n\nSelect an option 👇\n\n💬 Contact: @{OWNER_USERNAME}",
-        reply_markup=admin_panel(),
-        parse_mode="Markdown"
-    )
-    
 async def payment_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     data = query.data
+
+    await query.answer()  # important (prevents loading issue)
 
     if query.from_user.id != ADMIN_ID:
         return
@@ -809,12 +828,13 @@ async def payment_buttons(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     amount = pending_payments[uid]["amount"]
 
-if data.startswith("approve"):
-    add_balance(uid, amount)
+    # ✅ APPROVE
+    if data.startswith("approve"):
+        add_balance(uid, amount)
 
-    await context.bot.send_message(
-        uid,
-        f"""✅ *PAYMENT APPROVED*
+        await context.bot.send_message(
+            uid,
+            f"""✅ *PAYMENT APPROVED*
 
 ━━━━━━━━━━━━━━━
 💰 Amount Added: ₹{amount}
@@ -823,26 +843,27 @@ if data.startswith("approve"):
 
 ⚡ You can now use your balance!
 """,
-        parse_mode="Markdown"
-    )
+            parse_mode="Markdown"
+        )
 
-    await query.edit_message_caption(
-        f"""✅ *APPROVED*
+        await query.edit_message_caption(
+            f"""✅ *APPROVED*
 
 ━━━━━━━━━━━━━━━
 💰 Amount: ₹{amount}
 📌 Status: Success
 ━━━━━━━━━━━━━━━
 """,
-        parse_mode="Markdown"
-    )
+            parse_mode="Markdown"
+        )
 
-    pending_payments.pop(uid)
+        pending_payments.pop(uid)
 
-elif data.startswith("reject"):
-    await context.bot.send_message(
-        uid,
-        """❌ *PAYMENT REJECTED*
+    # ❌ REJECT
+    elif data.startswith("reject"):
+        await context.bot.send_message(
+            uid,
+            """❌ *PAYMENT REJECTED*
 
 ━━━━━━━━━━━━━━━
 ⚠️ Your payment could not be verified
@@ -851,20 +872,20 @@ elif data.startswith("reject"):
 
 🔁 Try again
 """,
-        parse_mode="Markdown"
-    )
+            parse_mode="Markdown"
+        )
 
-    await query.edit_message_caption(
-        """❌ *REJECTED*
+        await query.edit_message_caption(
+            """❌ *REJECTED*
 
 ━━━━━━━━━━━━━━━
 📌 Status: Failed
 ━━━━━━━━━━━━━━━
 """,
-        parse_mode="Markdown"
-    )
+            parse_mode="Markdown"
+        )
 
-    pending_payments.pop(uid)
+        pending_payments.pop(uid)
         
 async def addpromo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_user.id != ADMIN_ID:
@@ -984,12 +1005,12 @@ app.add_handler(CommandHandler("approve", approve))
 app.add_handler(CommandHandler("stockstats", stock_stats))
 app.add_handler(CommandHandler("broadcast", broadcast))
 app.add_handler(MessageHandler(filters.PHOTO, get_file_id))  # 🔥 IMPORTANT
-app.add_handler(MessageHandler(filters.PHOTO, auto_screenshot_to_admin))
 app.add_handler(CallbackQueryHandler(payment_buttons))
-app.add_handler(MessageHandler(filters.PHOTO, payment_screenshot))
-# Message Handler
-app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, capture_text))
+
+app.add_handler(MessageHandler(filters.PHOTO | filters.Document.IMAGE, handle_screenshot))
+
 app.add_handler(MessageHandler(filters.CONTACT, contact_handler))
 print("✅ Bot running...")
     app.run_polling()
