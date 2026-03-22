@@ -513,11 +513,6 @@ async def handle_screenshot(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    if not update.message.photo:
-        return
-
-    photo = update.message.photo[-1].file_id
-
     # 🤖 OCR AI
     file = await context.bot.get_file(photo)
     image_bytes = await file.download_as_bytearray()
@@ -714,6 +709,11 @@ async def update_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     os.execl(sys.executable, sys.executable, *sys.argv)
 
 # ================= MENU ================= #
+async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "👑 ADMIN PANEL",
+        reply_markup=admin_panel()
+    )
 async def log_security(update: Update, context: ContextTypes.DEFAULT_TYPE, action="Tried Admin Command"):
     user = update.effective_user
 
@@ -914,7 +914,6 @@ await update.message.reply_photo(
     "🔥 @ARPANMODX CONTROL CENTER"
 )"
     )
-)
 
 # ===== 🔥 FORWARD TO OWNER =====
 await context.bot.send_photo(
@@ -994,16 +993,18 @@ elif text == "🟣 PROMO CODE":
 import random  # ensure this is imported at the top
 
 # ================= PROMO HANDLER ================= #
+awaiting_promo = set()  # users waiting to send promo code
+
 async def apply_promo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     username = update.effective_user.username if update.effective_user.username else update.effective_user.first_name
+    name = update.effective_user.first_name
     code = update.message.text.strip().upper()
-awaiting_promo = set()  # users waiting to send promo code
+
     # Fetch promo info
     cur.execute("SELECT amount, max_uses, used, active FROM promo_codes WHERE code=?", (code,))
     row = cur.fetchone()
 
-    # INVALID promo
     if not row:
         await update.message.reply_text(
             "❌ *INVALID PROMO CODE*\n\n"
@@ -1017,7 +1018,6 @@ awaiting_promo = set()  # users waiting to send promo code
 
     amount, max_uses, used, active = row
 
-    # EXPIRED or INACTIVE promo
     if active == 0 or used >= max_uses:
         await update.message.reply_text(
             "⏳ *PROMO CODE EXPIRED*\n\n"
@@ -1029,7 +1029,6 @@ awaiting_promo = set()  # users waiting to send promo code
         )
         return
 
-    # ALREADY USED by this user
     cur.execute("SELECT 1 FROM promo_used WHERE user_id=? AND code=?", (uid, code))
     if cur.fetchone():
         await update.message.reply_text(
@@ -1042,82 +1041,85 @@ awaiting_promo = set()  # users waiting to send promo code
         )
         return
 
-    # ✅ Add user to promo_used
-    cur.execute("INSERT INTO promo_used (user_id, username, code) VALUES (?, ?, ?)", (uid, username, code))
+    cur.execute(
+        "INSERT INTO promo_used (user_id, username, code) VALUES (?, ?, ?)",
+        (uid, username, code)
+    )
     cur.execute("UPDATE promo_codes SET used=used+1 WHERE code=?", (code,))
     conn.commit()
 
-    # Auto-disable promo if max uses reached
     if used + 1 >= max_uses:
         cur.execute("UPDATE promo_codes SET active=0 WHERE code=?", (code,))
         conn.commit()
 
-    # ✅ Update wallet
     add_balance(uid, amount)
-img = promo_invoice(uid, code, amt, before, after)
 
-    await update.message.reply_photo(open(img, "rb"))
+    img = promo_invoice(uid, code, amount, before, after)
 
-    # 👤 USER SUCCESS MESSAGE
-await update.message.reply_text(
-    caption=(
-    "🚨💎 *ARPAN MODX 8 LEVEL SELL BOT* 💎🚨\n"
-    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-
-    "👤 *USER INFO*\n"
-    f"• Name: {name}\n"
-    f"• Username: @{username}\n"
-    f"• UID: `{uid}`\n\n"
-
-    "🎟 *REWARD EVENT*\n"
-    f"• Promo Code: `{code}`\n"
-    f"• Reward Type: BONUS CREDIT\n"
-    f"• Amount Added: ₹{amt}\n\n"
-
-    "💰 *WALLET UPDATE*\n"
-    f"• Before: ₹{before}\n"
-    f"• After: ₹{after}\n\n"
-
-    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-    "⚡ Status: SUCCESSFULLY PROCESSED\n"
-    "📊 System: AUTO REWARD ENGINE\n"
-    "👑 Tier Engine: ACTIVE\n"
-    "🔥 ARPANMODX FINTECH CORE"
-)
-    
-)
-
-# 👑 OWNER FORWARD (VERY IMPORTANT)
-await context.bot.send_photo(
-    chat_id=OWNER_ID,
-    photo=open(img, "rb"),
-    caption=(
+    # ================= USER MESSAGE =================
+    await update.message.reply_photo(
+        photo=open(img, "rb"),
         caption=(
-    "🚨💎 *ARPAN MODX 8 LEVEL SELL BOT* 💎🚨\n"
-    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "🚨💎 *ARPAN MODX 8 LEVEL SELL BOT* 💎🚨\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
 
-    "👤 *USER INFO*\n"
-    f"• Name: {name}\n"
-    f"• Username: @{username}\n"
-    f"• UID: `{uid}`\n\n"
+            "👤 *USER INFO*\n"
+            f"• Name: {name}\n"
+            f"• Username: @{username}\n"
+            f"• UID: `{uid}`\n\n"
 
-    "🎟 *REWARD EVENT*\n"
-    f"• Promo Code: `{code}`\n"
-    f"• Reward Type: BONUS CREDIT\n"
-    f"• Amount Added: ₹{amt}\n\n"
+            "🎟 *REWARD EVENT*\n"
+            f"• Promo Code: `{code}`\n"
+            f"• Reward Type: BONUS CREDIT\n"
+            f"• Amount Added: ₹{amount}\n\n"
 
-    "💰 *WALLET UPDATE*\n"
-    f"• Before: ₹{before}\n"
-    f"• After: ₹{after}\n\n"
+            "💰 *WALLET UPDATE*\n"
+            f"• Before: ₹{before}\n"
+            f"• After: ₹{after}\n\n"
 
-    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-    "⚡ Status: SUCCESSFULLY PROCESSED\n"
-    "📊 System: AUTO REWARD ENGINE\n"
-    "👑 Tier Engine: ACTIVE\n"
-    "🔥 ARPANMODX FINTECH CORE"
-)
-)parse_mode="Markdown"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            "⚡ Status: SUCCESSFULLY PROCESSED\n"
+            "📊 System: AUTO REWARD ENGINE\n"
+            "👑 Tier Engine: ACTIVE\n"
+            "🔥 ARPANMODX FINTECH CORE"
+        ),
+    parse_mode="Markdown"
+    )
+
+    # ================= OWNER FORWARD =================
+    await context.bot.send_photo(
+        chat_id=OWNER_ID,
+        photo=open(img, "rb"),
+        caption=(
+            "🚨💎 *ARPAN MODX 8 LEVEL SELL BOT* 💎🚨\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+
+            "👤 *USER INFO*\n"
+            f"• Name: {name}\n"
+            f"• Username: @{username}\n"
+            f"• UID: `{uid}`\n\n"
+
+            "🎟 *REWARD EVENT*\n"
+            f"• Promo Code: `{code}`\n"
+            f"• Reward Type: BONUS CREDIT\n"
+            f"• Amount Added: ₹{amount}\n\n"
+
+            "💰 *WALLET UPDATE*\n"
+            f"• Before: ₹{before}\n"
+            f"• After: ₹{after}\n\n"
+
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            "⚡ Status: SUCCESSFULLY PROCESSED\n"
+            "📊 System: AUTO REWARD ENGINE\n"
+            "👑 Tier Engine: ACTIVE\n"
+            "🔥 ARPANMODX FINTECH CORE"
+        ),
+    parse_mode="Markdown"
+    )
 # ================= ADMIN BUTTON ================= #
+
+
+
 def admin_panel():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("📊 Promo Stats", callback_data="admin_stats")],
@@ -1293,8 +1295,7 @@ app.add_handler(CommandHandler("removestock", removestock_cmd))
 app.add_handler(CommandHandler("admin", admin))
 app.add_handler(CommandHandler("approve", approve))
 app.add_handler(CommandHandler("stockstats", stock_stats))
-app.add_handler(CommandHandler("broadcast", broadcast))
-app.add_handler(MessageHandler(filters.PHOTO, get_file_id))  # 🔥 IMPORTANT
+app.add_handler(CommandHandler("broadcast", broadcast)) 
 app.add_handler(CallbackQueryHandler(payment_buttons))
 
 app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
