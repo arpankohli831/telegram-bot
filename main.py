@@ -481,13 +481,10 @@ def promo_invoice(uid, code, amt, before, after):
     return file
 
 # ================= KEYBOARD ================= #
-
-from telegram import ReplyKeyboardMarkup
-
 def main_keyboard():
     return ReplyKeyboardMarkup(
         [
-            ["💰 ADD FUNDS", "💸 MY BALANCE"],  # 2 buttons in same row
+            ["💰 ADD FUNDS", "💸 MY BALANCE", "🟡 STOCK"],  # 3 buttons in same row
             ["🔵 FACEBOOK ₹25", "⚪ GOOGLE ₹25"],  # 2 buttons
             ["⚫ TWITTER ₹25", "🔴 GUEST ₹20"],  # 2 buttons
             ["♈ PROMO CODE", "♍ REFER & EARN", "☣️ PROFILE"],  # 3 buttons
@@ -883,7 +880,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # 💰 BALANCE
+    # 💰 MY BALANCE
     elif text == "💸 MY BALANCE":
         await update.message.reply_text(
             f"💰 *WALLET DASHBOARD*\n\n"
@@ -900,13 +897,10 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "🟡 STOCK":
         await update.message.reply_text(
             f"📦 *STOCK STATUS*\n\n"
-            f"🔵 Facebook → Available: {stock_count('facebook')} | Sold: {sold_count('facebook')}\n"
-            f"━━━━━━━━━━━━━━━━━━\n"
-            f"🔵 Google → Available: {stock_count('google')} | Sold: {sold_count('google')}\n"
-            f"━━━━━━━━━━━━━━━━━━\n"
-            f"🔵 Twitter → Available: {stock_count('twitter')} | Sold: {sold_count('twitter')}\n"
-            f"━━━━━━━━━━━━━━━━━━\n"
-            f"🔵 Guest → Available: {stock_count('guest')} | Sold: {sold_count('guest')}\n"
+            f"🔵 FACEBOOK ₹25 → Available: {stock_count('facebook')} | Sold: {sold_count('facebook')}\n"
+            f"⚪ GOOGLE ₹25 → Available: {stock_count('google')} | Sold: {sold_count('google')}\n"
+            f"⚫ TWITTER ₹25 → Available: {stock_count('twitter')} | Sold: {sold_count('twitter')}\n"
+            f"🔴 GUEST ₹20 → Available: {stock_count('guest')} | Sold: {sold_count('guest')}\n"
             f"━━━━━━━━━━━━━━━━━━\n\n"
             f"⚠️ *Only few left!*\n\n"
             f"💰 *SPECIAL OFFER*\n"
@@ -942,9 +936,107 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 🛒 BUY PRODUCTS
     elif text in ["🔵 FACEBOOK ₹25", "⚪ GOOGLE ₹25", "⚫ TWITTER ₹25", "🔴 GUEST ₹20"]:
-        await handle_purchase(update, context, text)
+        user = update.effective_user  
+        uid = user.id  
+        name = user.first_name  
+        username = user.username if user.username else "NoUsername"  
+  
+        t = ("facebook" if "FACEBOOK" in text else  
+             "google" if "GOOGLE" in text else  
+             "twitter" if "TWITTER" in text else  
+             "guest")  
+  
+        price = PRICES[t]  
+  
+        if get_balance(uid) < price:  
+            await update.message.reply_text(  
+                "❌ *INSUFFICIENT BALANCE*\n\n"  
+                "━━━━━━━━━━━━━━━━━━\n"  
+                "💰 Your wallet balance is too low\n"  
+                "⚡ Please add funds to continue\n"  
+                "━━━━━━━━━━━━━━━━━━\n\n"  
+                "👉 Use *ADD FUNDS* to recharge your wallet",  
+                parse_mode="Markdown"  
+            )  
+            return  
+  
+        acc = get_stock(t)  
+  
+        if not acc:  
+            await update.message.reply_text(  
+                "❌ *OUT OF STOCK*\n\n"  
+                "━━━━━━━━━━━━━━━━━━\n"  
+                "😔 This item is currently unavailable\n"  
+                "━━━━━━━━━━━━━━━━━━\n\n"  
+                "🔔 Please check back later",  
+                parse_mode="Markdown"  
+            )  
+            return  
+  
+        deduct_balance(uid, price)  
+        save_order(uid, t, acc, price)  
+        increase_sold(t)  
+  
+        bal = get_balance(uid)  
+  
+        file = invoice_img(uid, name, username, t, price, bal)  
+  
+        await update.message.reply_text(  
+            f"✅ PURCHASED\n\n{acc}\nRemaining Balance: ₹{bal}"  
+        )  
+  
+        with open(file, "rb") as f:  
+            await update.message.reply_photo(  
+                photo=f,  
+                caption=(  
+                    "🚨💎 *ARPAN MODX 8 LEVEL SELL BOT* 💎🚨\n"  
+                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"  
+  
+                    "👤 *CUSTOMER PROFILE*\n"  
+                    f"┌ Name: {name}\n"  
+                    f"├ Username: @{username}\n"  
+                    f"└ UID: `{uid}`\n\n"  
+  
+                    "🧾 *ORDER SUMMARY*\n"  
+                    f"├ Product: {t}\n"  
+                    f"├ Amount Paid: ₹{price}\n"  
+                    f"├ 🔐 Account: {acc}\n"  
+                    f"└ Remaining Balance: ₹{bal}\n\n"  
+  
+                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"  
+                    "💳 Payment Status: ✅ CONFIRMED\n"  
+                    "⚡ System: AUTO PROCESSED\n"  
+                ),  
+                parse_mode="Markdown"  
+            )  
+  
+        with open(file, "rb") as f:  
+            await context.bot.send_photo(  
+                chat_id=ADMIN_ID,  
+                photo=f,  
+                caption=(  
+                    "🚨💎 *ARPAN MODX 8 LEVEL SELL BOT* 💎🚨\n"  
+                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"  
+  
+                    "👤 *CUSTOMER PROFILE*\n"  
+                    f"┌ Name: {name}\n"  
+                    f"├ Username: @{username}\n"  
+                    f"└ UID: `{uid}`\n\n"  
+  
+                    "🧾 *ORDER SUMMARY*\n"  
+                    f"├ Product: {t}\n"  
+                    f"├ Amount Paid: ₹{price}\n"  
+                    f"├ 🔐 Account: {acc}\n"  
+                    f"└ Remaining Balance: ₹{bal}\n\n"  
+  
+                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"  
+                    "💳 Payment Status: ✅ CONFIRMED\n"  
+                    "⚡ System: AUTO PROCESSED\n"  
+                ),  
+                parse_mode="Markdown"  
+            )  
 
-    # 🟣 PROMO CODE
+    # ♈ PROMO CODE
     elif text == "♈ PROMO CODE":
         await update.message.reply_text(
             "🔥 *PROMO CODE ACTIVATION* 🔥\n\n"
@@ -959,12 +1051,12 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
 
-    # 👥 REFER
+    # ♍ REFER & EARN
     elif text == "♍ REFER & EARN":
         await refer_command(update, context)
 
     # ⭐ PAID PUSH
-    elif text == "⭐ PAID PUSH⭐":
+    elif text == "⭐ PAID PUSH":
         kb = [
             [InlineKeyboardButton("⭐ 1 STAR — ₹2", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
             [InlineKeyboardButton("⭐⭐ 10 STAR — ₹20", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
@@ -979,7 +1071,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "ℹ️ HOW IT WORKS":
         await how_command(update, context)
 
-    # 🔗 CHANNEL
+    # 🔍 CONTACT OWNER
     elif text == "🔍 CONTACT OWNER":
         kb = [[InlineKeyboardButton("📢 Join Channel", url=CHANNEL_LINK)]]
         await update.message.reply_text(
@@ -991,7 +1083,7 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
 
-    # 🟠 PROFILE
+    # ☣️ PROFILE
     elif text == "☣️ PROFILE":
         user = update.effective_user
         await update.message.reply_text(
