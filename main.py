@@ -482,10 +482,12 @@ def promo_invoice(uid, code, amt, before, after):
 
 # ================= KEYBOARD ================= #
 
+from telegram import ReplyKeyboardMarkup
+
 def main_keyboard():
     return ReplyKeyboardMarkup(
         [
-            ["💰 ADD FUNDS"],  # 1 button
+            ["💰 ADD FUNDS", "💸 MY BALANCE"],  # 2 buttons in same row
             ["🔵 FACEBOOK ₹25", "⚪ GOOGLE ₹25"],  # 2 buttons
             ["⚫ TWITTER ₹25", "🔴 GUEST ₹20"],  # 2 buttons
             ["♈ PROMO CODE", "♍ REFER & EARN", "☣️ PROFILE"],  # 3 buttons
@@ -802,7 +804,7 @@ async def refer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     link = f"https://t.me/Arpan_8_level_id_sell_bot?start={uid}"
     await update.message.reply_text(
-        f"👥 REFER & EARN\n\n🔗 {link}\n\nEarn ₹{REF_BONUS} per referral\nTotal Referrals: {referral_count(uid)}"
+        f"♍ REFER & EARN\n\n🔗 {link}\n\nEarn ₹{REF_BONUS} per referral\nTotal Referrals: {referral_count(uid)}"
     )
 
 async def update_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -849,11 +851,12 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     text = update.message.text
 
-   if uid in awaiting_promo:
-    await apply_promo(update, context)
-    return
+    # PROMO CODE INPUT
+    if uid in awaiting_promo:
+        await apply_promo(update, context)
+        return
 
-    # 💰 PAYMENT AMOUNT INPUT
+    # PAYMENT AMOUNT INPUT
     if text.isdigit():
         if uid in pending_payments:
             await update.message.reply_text(
@@ -880,139 +883,129 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-# 💰 BALANCE
-elif text == "🟡 MY BALANCE":
-    await update.message.reply_text(
-        f"💰 *WALLET DASHBOARD*\n\n"
-        f"━━━━━━━━━━━━━━━━━━\n"
-        f"💎 Balance: *₹{get_balance(uid)}*\n"
-        f"━━━━━━━━━━━━━━━━━━\n\n"
-        f"🛒 Ready to shop?\n"
-        f"⚡ Buy premium accounts instantly!\n\n"
-        f"🔥 Thank you for using our service ❤️",
-        parse_mode="Markdown"
-    )
+    # 💰 BALANCE
+    elif text == "💸 MY BALANCE":
+        await update.message.reply_text(
+            f"💰 *WALLET DASHBOARD*\n\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"💎 Balance: *₹{get_balance(uid)}*\n"
+            f"━━━━━━━━━━━━━━━━━━\n\n"
+            f"🛒 Ready to shop?\n"
+            f"⚡ Buy premium accounts instantly!\n\n"
+            f"🔥 Thank you for using our service ❤️",
+            parse_mode="Markdown"
+        )
 
-# 📦 STOCK
-elif text == "🟡 STOCK":
-    await update.message.reply_text(
-        f"📦 *STOCK STATUS*\n\n"
-        f"🔵 Facebook → Available: {stock_count('facebook')} | Sold: {sold_count('facebook')}\n"
-        f"━━━━━━━━━━━━━━━━━━\n"
-        f"🔵 Google → Available: {stock_count('google')} | Sold: {sold_count('google')}\n"
-        f"━━━━━━━━━━━━━━━━━━\n"
-        f"🔵 Twitter → Available: {stock_count('twitter')} | Sold: {sold_count('twitter')}\n"
-        f"━━━━━━━━━━━━━━━━━━\n"
-        f"🔵 Guest → Available: {stock_count('guest')} | Sold: {sold_count('guest')}\n"
-        f"━━━━━━━━━━━━━━━━━━\n\n"
-        f"⚠️ *Only few left!*\n\n"
-        f"💰 *SPECIAL OFFER*\n"
-        f"👉 If you buy 10 accounts,\n"
-        f"you only pay *₹200*\n\n"
-        f"🔥 Hurry up before stock ends!",
-        parse_mode="Markdown"
-    )
+    # 📦 STOCK
+    elif text == "🟡 STOCK":
+        await update.message.reply_text(
+            f"📦 *STOCK STATUS*\n\n"
+            f"🔵 Facebook → Available: {stock_count('facebook')} | Sold: {sold_count('facebook')}\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"🔵 Google → Available: {stock_count('google')} | Sold: {sold_count('google')}\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"🔵 Twitter → Available: {stock_count('twitter')} | Sold: {sold_count('twitter')}\n"
+            f"━━━━━━━━━━━━━━━━━━\n"
+            f"🔵 Guest → Available: {stock_count('guest')} | Sold: {sold_count('guest')}\n"
+            f"━━━━━━━━━━━━━━━━━━\n\n"
+            f"⚠️ *Only few left!*\n\n"
+            f"💰 *SPECIAL OFFER*\n"
+            f"👉 If you buy 10 accounts, you only pay *₹200*\n\n"
+            f"🔥 Hurry up before stock ends!",
+            parse_mode="Markdown"
+        )
 
-# 💳 ADD FUNDS
-elif text == "🟢 ADD FUNDS":
-    if os.path.exists(QR_IMAGE_PATH):
-        with open(QR_IMAGE_PATH, "rb") as photo:
-            await update.message.reply_photo(
-                photo=photo,
-                caption=(
-                    "💰 *Scan & Pay*\n\n"
-                    f"👤 Owner: {OWNER_USERNAME}\n"
-                    f"💳 UPI: `{UPI_ID}`\n\n"
-                    "━━━━━━━━━━━━━━━━━━\n"
-                    "🇮🇳 *UPI PAYMENT (INDIA)*\n"
-                    "━━━━━━━━━━━━━━━━━━\n"
-                    "✨ *Steps to Deposit:*\n"
-                    "1. Copy the UPI ID below\n"
-                    "2. Pay using any UPI app\n"
-                    "3. Save UTR\n"
-                    "4. Send Payment Screenshot and amount in bot\n"
-                   f"5. After Admin VARIFICATION auto add fund few minutes in your wallet\n\n"
-                    "━━━━━━━━━━━━━━━━━━\n"
-                    "⚠️ Payment will be verified before adding balance."
-                ),
-                parse_mode="Markdown"
-            )
-    return
+    # 💳 ADD FUNDS
+    elif text == "💰 ADD FUNDS":
+        if os.path.exists(QR_IMAGE_PATH):
+            with open(QR_IMAGE_PATH, "rb") as photo:
+                await update.message.reply_photo(
+                    photo=photo,
+                    caption=(
+                        "💰 *Scan & Pay*\n\n"
+                        f"👤 Owner: {OWNER_USERNAME}\n"
+                        f"💳 UPI: `{UPI_ID}`\n\n"
+                        "━━━━━━━━━━━━━━━━━━\n"
+                        "🇮🇳 *UPI PAYMENT (INDIA)*\n"
+                        "━━━━━━━━━━━━━━━━━━\n"
+                        "✨ *Steps to Deposit:*\n"
+                        "1. Copy the UPI ID below\n"
+                        "2. Pay using any UPI app\n"
+                        "3. Save UTR\n"
+                        "4. Send Payment Screenshot and amount in bot\n"
+                        "5. After Admin VERIFICATION auto add fund few minutes in your wallet\n\n"
+                        "━━━━━━━━━━━━━━━━━━\n"
+                        "⚠️ Payment will be verified before adding balance."
+                    ),
+                    parse_mode="Markdown"
+                )
 
-# 🛒 BUY PRODUCTS
-elif text in ["🔵 FACEBOOK ₹25", "🔵 GOOGLE ₹25", "🔵 TWITTER ₹25", "🔵 GUEST ₹20"]:
-    # ... (existing code for purchases stays same)
+    # 🛒 BUY PRODUCTS
+    elif text in ["🔵 FACEBOOK ₹25", "⚪ GOOGLE ₹25", "⚫ TWITTER ₹25", "🔴 GUEST ₹20"]:
+        await handle_purchase(update, context, text)
 
-elif text == "🟣 PROMO CODE":
-   await update.message.reply_text(
-    "🔥 *PROMO CODE ACTIVATION* 🔥\n\n"
-    "🎁 Enter your code & unlock rewards 💎\n\n"
-    "━━━━━━━━━━━━━━━━━━━━━━\n"
-    "⚡ Chance to win 1-10000 rupees💯\n"
-    "⚡ Instant Reward System\n"
-    "🔒 Safe & Verified\n"
-    "🎉 Bonus Surprises Waiting\n"
-    "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-    "💌 Send your promo code now 👇",
-    parse_mode="Markdown"
-)
+    # 🟣 PROMO CODE
+    elif text == "♈ PROMO CODE":
+        await update.message.reply_text(
+            "🔥 *PROMO CODE ACTIVATION* 🔥\n\n"
+            "🎁 Enter your code & unlock rewards 💎\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n"
+            "⚡ Chance to win 1-10000 rupees💯\n"
+            "⚡ Instant Reward System\n"
+            "🔒 Safe & Verified\n"
+            "🎉 Bonus Surprises Waiting\n"
+            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+            "💌 Send your promo code now 👇",
+            parse_mode="Markdown"
+        )
 
-# 👥 REFER
-elif text == "🟣 REFER & EARN":
-    await refer_command(update, context)
+    # 👥 REFER
+    elif text == "♍ REFER & EARN":
+        await refer_command(update, context)
 
-# ⭐ PAID PUSH
-elif text == "⭐ PAID PUSH⭐":
-    kb = [
-        [InlineKeyboardButton("⭐ 1 STAR — ₹2", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
-        [InlineKeyboardButton("⭐⭐ 10 STAR — ₹20", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
-        [InlineKeyboardButton("⭐⭐⭐ 25 STAR — ₹50", url=f"https://t.me/{OWNER_USERNAME[1:]}")]
-    ]
+    # ⭐ PAID PUSH
+    elif text == "⭐ PAID PUSH⭐":
+        kb = [
+            [InlineKeyboardButton("⭐ 1 STAR — ₹2", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
+            [InlineKeyboardButton("⭐⭐ 10 STAR — ₹20", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
+            [InlineKeyboardButton("⭐⭐⭐ 25 STAR — ₹50", url=f"https://t.me/{OWNER_USERNAME[1:]}")]
+        ]
+        await update.message.reply_text(
+            f"⭐ PAID PUSH PRICES\n\n👤 Owner: {OWNER_USERNAME}",
+            reply_markup=InlineKeyboardMarkup(kb)
+        )
 
-    await update.message.reply_text(
-        f"⭐ PAID PUSH PRICES\n\n👤 Owner: {OWNER_USERNAME}",
-        reply_markup=InlineKeyboardMarkup(kb)
-    )
+    # ℹ️ HOW IT WORKS
+    elif text == "ℹ️ HOW IT WORKS":
+        await how_command(update, context)
 
-elif text == "ℹ️ HOW IT WORKS":
-    await how_command(update, context)
+    # 🔗 CHANNEL
+    elif text == "🔍 CONTACT OWNER":
+        kb = [[InlineKeyboardButton("📢 Join Channel", url=CHANNEL_LINK)]]
+        await update.message.reply_text(
+            f"📢 *Join Our Channel & Contact Info*\n\n"
+            f"👤 Owner: {OWNER_USERNAME}\n"
+            f"📩 Contact: [Message Owner](https://t.me/{OWNER_USERNAME[1:]})\n\n"
+            f"Stay updated with all latest news, promos, and releases!",
+            reply_markup=InlineKeyboardMarkup(kb),
+            parse_mode="Markdown"
+        )
 
-# 🔗 CHANNEL + CONTACT INFO
-elif text == "🔗 CHANNEL":
-    # Inline button to join channel
-    kb = [
-        [InlineKeyboardButton("📢 Join Channel", url=CHANNEL_LINK)]
-    ]
-    
-    # Message with channel info + owner contact
-    await update.message.reply_text(
-        f"📢 *Join Our Channel & Contact Info*\n\n"
-        f"👤 Owner: {OWNER_USERNAME}\n"
-        f"📩 Contact: [Message Owner](https://t.me/{OWNER_USERNAME[1:]})\n\n"
-        f"Stay updated with all latest news, promos, and releases!",
-        reply_markup=InlineKeyboardMarkup(kb),
-        parse_mode="Markdown"
-    )
-
-# 🟠 PROFILE
-elif text == "🟠 PROFILE":
-    user = update.effective_user
-    uid = user.id
-    name = user.first_name
-    username = user.username if user.username else "NoUsername"
-
-    await update.message.reply_text(
-        f"💎👑 ARPANMODX ELITE USER PROFILE 👑💎\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"👤 NAME       : {name}\n"
-        f"🔗 USERNAME   : @{username}\n"
-        f"🆔 USER ID    : `{uid}`\n"
-        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        "⚡ PREMIUM STATUS: VERIFIED\n"
-        "💎 INSTANT ACCESS TO ALL IDS\n"
-        "🚀 SHOP WITH CONFIDENCE",
-        parse_mode="Markdown"
-    )
+    # 🟠 PROFILE
+    elif text == "☣️ PROFILE":
+        user = update.effective_user
+        await update.message.reply_text(
+            f"💎👑 ARPANMODX ELITE USER PROFILE 👑💎\n\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"👤 NAME       : {user.first_name}\n"
+            f"🔗 USERNAME   : @{user.username if user.username else 'NoUsername'}\n"
+            f"🆔 USER ID    : `{user.id}`\n"
+            "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            "⚡ PREMIUM STATUS: VERIFIED\n"
+            "💎 INSTANT ACCESS TO ALL IDS\n"
+            "🚀 SHOP WITH CONFIDENCE",
+            parse_mode="Markdown"
+        )
 
 
 # ================= HANDLE TEXT ================= #
