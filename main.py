@@ -471,7 +471,7 @@ def promo_invoice(uid, code, amt, before, after):
     draw.text((180, height-50), "✔ VERIFIED • PREMIUM SYSTEM • SECURE BY ARPAN MODX", fill="black", font=small)
 
     # ===== WATERMARK =====
-    watermark = "👑 ARPANMODX"
+    watermark = "👑 ARPAN MODX"
     for i in range(0, 1100, 300):
         draw.text((i, 580), watermark, fill=(200,200,200,50), font=small)
 
@@ -535,13 +535,17 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ✅ AFTER VERIFIED
     caption = (
-    "👑💎 *WELCOME TO ARPANMODX 8 LEVEL ID STORE* 💎👑\n\n"
-    "━━━━━━━━━━━━━━━━━━━━━━━━\n"
-    "⚡ INSTANT DELIVERY • FAST & SAFE\n"
-    "🔒 100% VERIFIED PAYMENTS\n"
-    "💎 PREMIUM SERVICES ONLY\n"
-    "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-    "🛒 SHOP NOW • INSTANT ACCESS • TRUSTED 🚀"
+    "💎👑╔═══════════════════════════════════╗👑💎\n"
+    "💎👑║  *WELCOME TO ARPANMODX 8 LEVEL ID STORE*  ║👑💎\n"
+    "💎👑╚═══════════════════════════════════╝👑💎\n"
+    "╔━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╗\n"
+    "║ ⚡ INSTANT DELIVERY • FAST & SAFE          ║\n"
+    "║ 🔒 100% VERIFIED PAYMENTS                  ║\n"
+    "║ 💎 PREMIUM SERVICES ONLY                   ║\n"
+    "╚━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╝\n"
+    "🏆╔═══════════════════════════════════╗🏆\n"
+    "🏆║ 🛒 SHOP NOW • INSTANT ACCESS • TRUSTED 🚀 ║🏆\n"
+    "🏆╚═══════════════════════════════════╝🏆"
 )
 
     inline_keyboard = [
@@ -791,11 +795,26 @@ async def contact_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ================= COMMANDS ================= #
 async def stats(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    # Total users
     cur.execute("SELECT COUNT(*) FROM users")
     users = cur.fetchone()[0]
-    cur.execute("SELECT COUNT(*) FROM stock")
+
+    # Total stock (sum quantity)
+    cur.execute("SELECT SUM(quantity) FROM stock")
     stock = cur.fetchone()[0]
-    await update.message.reply_text(f"📊 BOT STATS\n\n👥 Users: {users}\n📦 Stock: {stock}")
+    stock = stock if stock else 0  # handle None
+
+    # Total sold (if you have a sold column)
+    cur.execute("SELECT SUM(sold) FROM stock")
+    sold = cur.fetchone()[0]
+    sold = sold if sold else 0
+
+    await update.message.reply_text(
+        f"📊 BOT STATS\n\n"
+        f"👥 Users: {users}\n"
+        f"📦 Stock: {stock}\n"
+        f"✅ Sold: {sold}"
+    )
 
 async def refer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
@@ -1040,10 +1059,21 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     elif text == "♈ PROMO CODE":
     awaiting_promo.add(uid)
     await update.message.reply_text(
-        "🎁 *🎉 PROMO CODE REWARD TIME! 🎉*\n\n"
-        "━━━━━━━━━━━━━━━━━━━\n"
-        "💌 Send your promo code now\n"
-        "━━━━━━━━━━━━━━━━━━━",
+        "💎🌟╔═══════════════════════════╗🌟💎\n"
+    "💎🌟║  ARPAN MODX 8 LEVEL ID STORE BOT PROMO  ║🌟💎\n"
+    "💎🌟╚═══════════════════════════╝🌟💎\n"
+    "╔━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╗\n"
+    "║ 🎉 𝐏𝐑𝐎𝐌𝐎 𝐂𝐎𝐃𝐄 𝐑𝐄𝐖𝐀𝐑𝐃 𝐓𝐈𝐌𝐄! CHANGE TO WIN 1-10000🎉 ║\n"
+    "╚━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╝\n"
+    "╔━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╗\n"
+    "║ 💌 𝐒𝐄𝐍𝐃 𝐘𝐎𝐔𝐑 𝐏𝐑𝐎𝐌𝐎 𝐂𝐎𝐃𝐄 𝐍𝐎𝐖        ║\n"
+    "║ 𝐓𝐎 𝐂𝐋𝐀𝐈𝐌 𝐘𝐎𝐔𝐑 *𝐕𝐈𝐏 𝐁𝐎𝐍𝐔𝐒*         ║\n"
+    "║ ⚡ 𝐋𝐈𝐌𝐈𝐓𝐄𝐃-𝐓𝐈𝐌𝐄 𝐄𝐋𝐈𝐓𝐄 𝐑𝐄𝐖𝐀𝐑𝐃𝐒 – 𝐇𝐔𝐑𝐑𝐘! ║\n"
+    "╚━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━╝\n"
+    "🏆╔═════════════════════════════╗🏆\n"
+    "🏆║ EXCITING OFFERS STAY JOIN║🏆\n"
+    "🏆╚═════════════════════════════╝🏆"
+)
         parse_mode="Markdown"
     )
         )
@@ -1268,12 +1298,36 @@ async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if user_id != OWNER_ID:
         # If not admin, send a message and return
-        await update.message.reply_text("❌ Access Denied. You are not an admin.")
+        await update.message.reply_text(
+    "💎✨ ARPAN MODX 8 LEVEL ID STORE ADMIN SECTION ✨💎\n"
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    "🚫 ❌ 𝐀𝐂𝐂𝐄𝐒𝐒 𝐃𝐄𝐍𝐈𝐄𝐃 ❌ 🚫\n"
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    "🔒 *RESTRICTED ZONE* – ADMINS ONLY\n"
+    "⚡ UNAUTHORIZED ACCESS ATTEMPTS ARE MONITORED\n"
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    "🛡️ *PLEASE CONTACT AN ADMIN* IF YOU BELIEVE THIS IS AN ERROR\n"
+    "💠 ACCESS TO THIS PANEL IS A PRIVILEGE, HANDLE RESPONSIBLY 💠\n"
+    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+)
         return
 
     # Admin only sees this
     await update.message.reply_text(
-        "👑 ADMIN PANEL",
+    "👑✨ 𝐀𝐃𝐌𝐈𝐍 𝐂𝐎𝐍𝐓𝐑𝐎𝐋 𝐂𝐄𝐍𝐓𝐄𝐑 ✨👑\n"
+    "━━━━━━━━━━━━━━━━━━━━━\n"
+    "🔐 *Restricted Access:* ⚡ Authorized Personnel Only\n"
+    "━━━━━━━━━━━━━━━━━━━━━\n"
+    "🧠 *Command Hub:*\n"
+    "• 📊 *System Analytics* – Monitor performance metrics\n"
+    "• 📈 *Performance Dashboard* – Real-time insights\n"
+    "• 👥 *User Control Panel* – Manage users efficiently\n"
+    "• 💰 *Revenue Insights* – Track earnings & transactions\n"
+    "• 🚫 *System Restrictions* – Control access & limits\n"
+    "• 📤 *Export & Reports* – Generate detailed logs\n"
+    "━━━━━━━━━━━━━━━━━━━━━\n"
+    "⚡ *Tip:* Always operate responsibly and securely! ⚡"
+)
         reply_markup=admin_keyboard()
     )
 
@@ -1301,6 +1355,7 @@ async def admin_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if uid != ADMIN_ID:
         return False
 
+   # ================= Promo Stats =================
     if text == "📊 Promo Stats":
         cur.execute("SELECT COUNT(*) FROM promo_codes")
         total = cur.fetchone()[0]
@@ -1310,46 +1365,49 @@ async def admin_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         await update.message.reply_text(f"📊 Promo Codes: {total}\nUsed: {used}")
 
+    # ================= Total Sales =================
     elif text == "📈 Total Sales":
         cur.execute("SELECT SUM(price) FROM orders")
         total = cur.fetchone()[0] or 0
 
         await update.message.reply_text(f"📈 Total Sales: ₹{total}")
 
+    # ================= Total Users =================
     elif text == "👥 Total Users":
-        # Fetch all users
         cur.execute("SELECT first_name, username, user_id FROM users")
         users = cur.fetchall()
-
         total = len(users)
+
+        if total == 0:
+            await update.message.reply_text("👥 No users found")
+            return True
+
+        # Send users in chunks to avoid Telegram message limit
         message = f"👥 Total Users: {total}\n\n"
+        chunk_size = 30  # number of users per message
+        for i in range(0, total, chunk_size):
+            chunk = users[i:i + chunk_size]
+            chunk_message = ""
+            for user in chunk:
+                first_name, username, user_id = user
+                username_display = f"@{username}" if username else "No Username"
+                chunk_message += f"• {first_name} ({username_display}) — ID: {user_id}\n"
+            await update.message.reply_text(message + chunk_message)
+            message = ""  # only show total in first message
 
-        # Add each user's info
-        for user in users:
-            first_name, username, user_id = user
-            username_display = f"@{username}" if username else "No Username"
-            message += f"• {first_name} ({username_display}) — ID: {user_id}\n"
-
-        # Split message if too long for Telegram
-        if len(message) > 4000:
-            chunks = [message[i:i+4000] for i in range(0, len(message), 4000)]
-            for chunk in chunks:
-                await update.message.reply_text(chunk)
-        else:
-            await update.message.reply_text(message)
-
+    # ================= Earnings =================
     elif text == "💰 Earnings":
         cur.execute("SELECT SUM(price) FROM orders")
         total = cur.fetchone()[0] or 0
-
         await update.message.reply_text(f"💰 Earnings: ₹{total}")
 
+    # ================= Disable Promo =================
     elif text == "🚫 Disable Promo":
         cur.execute("UPDATE promo_codes SET active=0")
         conn.commit()
-
         await update.message.reply_text("🚫 All promo codes disabled")
 
+    # ================= Export CSV =================
     elif text == "📤 Export CSV":
         cur.execute("SELECT * FROM orders")
         rows = cur.fetchall()
@@ -1362,6 +1420,7 @@ async def admin_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         with open("orders.csv", "rb") as f:
             await update.message.reply_document(f)
 
+    # ================= Ban User =================
     elif text == "🔴 Ban User":
         admin_state[uid] = "ban"
         await update.message.reply_text("Send User ID to ban")
@@ -1371,6 +1430,7 @@ async def admin_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         admin_state.pop(uid)
         await update.message.reply_text(f"🚫 User {text} banned")
 
+    # ================= Unban User =================
     elif text == "🟢 Unban User":
         admin_state[uid] = "unban"
         await update.message.reply_text("Send User ID to unban")
@@ -1380,7 +1440,10 @@ async def admin_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         admin_state.pop(uid)
         await update.message.reply_text(f"✅ User {text} unbanned")
 
+    # ================= Back =================
     elif text == "🔙 Back":
+        from telegram import ReplyKeyboardMarkup
+        # Replace main_keyboard() with your actual keyboard function
         await update.message.reply_text(
             "📋 Main Menu",
             reply_markup=main_keyboard()
@@ -1516,6 +1579,7 @@ app.add_handler(CommandHandler("approve", approve))
 app.add_handler(CommandHandler("stockstats", stock_stats))
 app.add_handler(CommandHandler("broadcast", broadcast))
 app.add_handler(CommandHandler("how", how_command))
+app.add_handler(CommandHandler("stats", stats))
 # Callback
 app.add_handler(CallbackQueryHandler(payment_buttons))
 
