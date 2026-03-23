@@ -481,27 +481,16 @@ def promo_invoice(uid, code, amt, before, after):
     return file
 
 # ================= KEYBOARD ================= #
+
 def main_keyboard():
     return ReplyKeyboardMarkup(
         [
-            ["🟡 MY BALANCE", "🟡 STOCK"],
-            ["🟢 ADD FUNDS"],
-            ["8 LEVEL IDS"],  # ✅ New button
-            ["🟣 PROMO CODE", "🟣 REFER & EARN"],
-            ["⭐ PAID PUSH⭐", "🔗 CHANNEL"],
-            ["🟠 PROFILE"],  # ✅ Add this new PROFILE button
-            ["⚫ CONTACT OWNER"],
-            ["ℹ️ HOW IT WORKS"]
-        ],
-        resize_keyboard=True
-    )
-
-def ids_keyboard():
-    return ReplyKeyboardMarkup(
-        [
-            ["🔵 FACEBOOK ₹25", "🔵 GOOGLE ₹25"],
-            ["🔵 TWITTER ₹25", "🔵 GUEST ₹20"],
-            ["🔙 Back"]  # Back button to return to main menu
+            ["💰 ADD FUNDS"],  # 1 button
+            ["🔵 FACEBOOK ₹25", "⚪ GOOGLE ₹25"],  # 2 buttons
+            ["⚫ TWITTER ₹25", "🔴 GUEST ₹20"],  # 2 buttons
+            ["♈ PROMO CODE", "♍ REFER & EARN", "☣️ PROFILE"],  # 3 buttons
+            ["⭐ PAID PUSH", "🔍 CONTACT OWNER"],  # 2 buttons
+            ["ℹ️ HOW IT WORKS"]  # 1 button
         ],
         resize_keyboard=True
     )
@@ -821,17 +810,21 @@ async def update_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
     os.execl(sys.executable, sys.executable, *sys.argv)
 async def how_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "🛒 *BUY 8 LEVEL ID FROM HERE*\n\n"
-        "1. ADD FUNDS USING UPI 💰\n"
-        "SEND PAYMENT SCREENSHOT AND PAYMENT AMOUNT IN BOT\n\n"
-        "2. WAIT FOR ADMIN APPROVAL\n"
-        "AUTO VERIFICATION AFTER FEW MINUTES ✅\n\n"
-        "3. BUY IDS FROM STORE 🛒\n"
-        "4. GET INSTANT DELIVERY ⚡\n\n"
-        "SIMPLE & FAST 🚀\n\n"
-        "📩 DIRECT BUYERS DM @ARPANMODX",
-        parse_mode="Markdown"
-    )    
+    "🔥 *WELCOME TO ARPANMODX STORE* 🔥\n\n"
+    "💎 *8 LEVEL PREMIUM IDS AVAILABLE*\n\n"
+    "━━━━━━━━━━━━━━━━━━━━━━\n"
+    "⚡ EASY BUY PROCESS ⚡\n"
+    "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    "1️⃣ Add Money via UPI 💰\n"
+    "2️⃣ Send Payment Proof screenshot and amount in bot📸\n"
+    "3️⃣ Auto Verify in few Minutes ✅\n"
+    "4️⃣ Buy ID & Get Instantly ⚡\n\n"
+    "━━━━━━━━━━━━━━━━━━━━━━\n"
+    "🔒 Safe & Trusted System\n"
+    "🚀 Instant Delivery Guaranteed\n\n"
+    "📩 *any problem or direct buyer Contact:* @ARPANMODX",
+    parse_mode="Markdown"
+)
 # ================= MENU ================= #
 
 async def log_security(update: Update, context: ContextTypes.DEFAULT_TYPE, action="Tried Admin Command"):
@@ -887,25 +880,6 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-elif text == "8 LEVEL IDS":
-    await update.message.reply_text(
-        "💎👑 *ARPANMODX 8 LEVEL IDS STORE* 👑💎\n\n"
-        "━━━━━━━━━━━━━━━━━━━━━━\n"
-        "⚡ CHOOSE YOUR ACCOUNT TO BUY\n"
-        "💎 PREMIUM IDS • INSTANT DELIVERY\n"
-        "🔒 SECURE & VERIFIED\n"
-        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-        "🛒 SELECT BELOW TO PROCEED",
-        reply_markup=ids_keyboard(),
-        parse_mode="Markdown"
-    )
-
-elif text == "🔙 Back":
-    await update.message.reply_text(
-        "📋 Main Menu 👇",
-        reply_markup=main_keyboard()
-    )
-
 # 💰 BALANCE
 elif text == "🟡 MY BALANCE":
     await update.message.reply_text(
@@ -956,7 +930,8 @@ elif text == "🟢 ADD FUNDS":
                     "1. Copy the UPI ID below\n"
                     "2. Pay using any UPI app\n"
                     "3. Save UTR\n"
-                    f"4. Send screenshot\n\n"
+                    "4. Send Payment Screenshot and amount in bot\n"
+                   f"5. After Admin VARIFICATION auto add fund few minutes in your wallet\n\n"
                     "━━━━━━━━━━━━━━━━━━\n"
                     "⚠️ Payment will be verified before adding balance."
                 ),
@@ -969,14 +944,18 @@ elif text in ["🔵 FACEBOOK ₹25", "🔵 GOOGLE ₹25", "🔵 TWITTER ₹25", 
     # ... (existing code for purchases stays same)
 
 elif text == "🟣 PROMO CODE":
-    awaiting_promo.add(uid)
-    await update.message.reply_text(
-        "🎁 *🎉 PROMO CODE REWARD TIME! 🎉*\n\n"
-        "━━━━━━━━━━━━━━━━━━━\n"
-        "💌 Send your promo code now\n"
-        "━━━━━━━━━━━━━━━━━━━",
-        parse_mode="Markdown"
-    )
+   await update.message.reply_text(
+    "🔥 *PROMO CODE ACTIVATION* 🔥\n\n"
+    "🎁 Enter your code & unlock rewards 💎\n\n"
+    "━━━━━━━━━━━━━━━━━━━━━━\n"
+    "⚡ Chance to win 1-10000 rupees💯\n"
+    "⚡ Instant Reward System\n"
+    "🔒 Safe & Verified\n"
+    "🎉 Bonus Surprises Waiting\n"
+    "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    "💌 Send your promo code now 👇",
+    parse_mode="Markdown"
+)
 
 # 👥 REFER
 elif text == "🟣 REFER & EARN":
@@ -998,18 +977,21 @@ elif text == "⭐ PAID PUSH⭐":
 elif text == "ℹ️ HOW IT WORKS":
     await how_command(update, context)
 
-# 🔗 CHANNEL
+# 🔗 CHANNEL + CONTACT INFO
 elif text == "🔗 CHANNEL":
-    kb = [[InlineKeyboardButton("Join Channel", url=CHANNEL_LINK)]]
+    # Inline button to join channel
+    kb = [
+        [InlineKeyboardButton("📢 Join Channel", url=CHANNEL_LINK)]
+    ]
+    
+    # Message with channel info + owner contact
     await update.message.reply_text(
-        "📢 Join our channel for updates:",
-        reply_markup=InlineKeyboardMarkup(kb)
-    )
-
-# 📞 CONTACT
-elif text == "⚫ CONTACT OWNER":
-    await update.message.reply_text(
-        f"👤 Owner: {OWNER_USERNAME}\n📩 Contact: https://t.me/{OWNER_USERNAME[1:]}"
+        f"📢 *Join Our Channel & Contact Info*\n\n"
+        f"👤 Owner: {OWNER_USERNAME}\n"
+        f"📩 Contact: [Message Owner](https://t.me/{OWNER_USERNAME[1:]})\n\n"
+        f"Stay updated with all latest news, promos, and releases!",
+        reply_markup=InlineKeyboardMarkup(kb),
+        parse_mode="Markdown"
     )
 
 # 🟠 PROFILE
