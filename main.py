@@ -848,8 +848,8 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     text = update.message.text
 
-    # PROMO CODE INPUT
-    if uid in awaiting_promo:
+    # 🔥 PROMO ROUTER (CORRECT PLACE)
+    if uid in awaiting_promo and not text.isdigit():
         await apply_promo(update, context)
         return
 
@@ -1038,17 +1038,14 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ♈ PROMO CODE
     elif text == "♈ PROMO CODE":
-        await update.message.reply_text(
-            "🔥 *PROMO CODE ACTIVATION* 🔥\n\n"
-            "🎁 Enter your code & unlock rewards 💎\n\n"
-            "━━━━━━━━━━━━━━━━━━━━━━\n"
-            "⚡ Chance to win 1-10000 rupees💯\n"
-            "⚡ Instant Reward System\n"
-            "🔒 Safe & Verified\n"
-            "🎉 Bonus Surprises Waiting\n"
-            "━━━━━━━━━━━━━━━━━━━━━━\n\n"
-            "💌 Send your promo code now 👇",
-            parse_mode="Markdown"
+    awaiting_promo.add(uid)
+    await update.message.reply_text(
+        "🎁 *🎉 PROMO CODE REWARD TIME! 🎉*\n\n"
+        "━━━━━━━━━━━━━━━━━━━\n"
+        "💌 Send your promo code now\n"
+        "━━━━━━━━━━━━━━━━━━━",
+        parse_mode="Markdown"
+    )
         )
 
     # ♍ REFER & EARN
@@ -1111,9 +1108,12 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await menu(update, context)
 
-# ================= PROMO HANDLER ================= #
+# ================= PROMO SYSTEM ================= #
+
 awaiting_promo = set()  # users waiting to send promo code
 
+
+# ================= APPLY PROMO ================= #
 async def apply_promo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     username = update.effective_user.username if update.effective_user.username else update.effective_user.first_name
@@ -1124,7 +1124,8 @@ async def apply_promo(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if uid not in awaiting_promo:
         return
 
-    awaiting_promo.remove(uid)
+    # ✅ SAFE REMOVE (NO ERROR)
+    awaiting_promo.discard(uid)
 
     # 🔍 Fetch promo
     cur.execute("SELECT amount, max_uses, used, active FROM promo_codes WHERE code=?", (code,))
@@ -1136,7 +1137,7 @@ async def apply_promo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "━━━━━━━━━━━━━━━━━━━\n"
             "🚫 The code you entered is not valid\n"
             "━━━━━━━━━━━━━━━━━━━\n\n"
-            f"💬 Need a promo code?\n👉 Contact: @{OWNER_USERNAME}",
+            f"💬 Need a promo code?\n👉 Contact: {OWNER_USERNAME}",
             parse_mode="Markdown"
         )
         return
@@ -1149,7 +1150,7 @@ async def apply_promo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "━━━━━━━━━━━━━━━━━━━\n"
             "⚠️ This promo code has reached its limit or is inactive\n"
             "━━━━━━━━━━━━━━━━━━━\n\n"
-            f"💬 Contact admin for a new code: @{OWNER_USERNAME}",
+            f"💬 Contact admin for a new code: {OWNER_USERNAME}",
             parse_mode="Markdown"
         )
         return
@@ -1162,7 +1163,7 @@ async def apply_promo(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "━━━━━━━━━━━━━━━━━━━\n"
             "🔁 You have already applied this promo code\n"
             "━━━━━━━━━━━━━━━━━━━\n\n"
-            f"💬 Want another code? Contact: @{OWNER_USERNAME}",
+            f"💬 Want another code? Contact: {OWNER_USERNAME}",
             parse_mode="Markdown"
         )
         return
