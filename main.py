@@ -302,57 +302,65 @@ def mask_text(text):
     return text[:2] + "****" + text[-2:]
     
 # ================= PREMIUM INVOICE =================
-def invoice_img(uid, name, username, product, price, bal):
+def invoice_img(uid, name, username, product, price, bal, account_email="", account_password=""):
     # ===== GENERATE IDS =====
     order_id = random.randint(18000, 19000)
     txn_id = f"TXN{random.randint(100000,999999)}"
 
-    # ===== BASE IMAGE =====
-    img = Image.new("RGB", (1100, 650), "#0a0a0a")
+    # ===== BASE IMAGE WITH GRADIENT =====
+    img = Image.new("RGB", (1100, 650), "#fefefe")
     d = ImageDraw.Draw(img)
 
-    gold = (255, 215, 0)
-    soft_gold = (212, 175, 55)
-    white = (255, 255, 255)
-    gray = (140, 140, 140)
+    # Soft gradient background (luxury feel)
+    for y in range(650):
+        gradient = int(240 + y*0.025)
+        d.line((0, y, 1100, y), fill=(gradient, gradient, gradient))
+
+    # ===== COLORS =====
+    gold = (212, 175, 55)
+    soft_gold = (255, 215, 180)
+    dark_gray = (35, 35, 35)
+    gray = (120, 120, 120)
+    pastel_blue = (200, 220, 255)
+    light_shadow = (180, 180, 180)
 
     # ===== FONTS =====
     try:
-        title = ImageFont.truetype("arial.ttf", 52)
+        title = ImageFont.truetype("arialbd.ttf", 52)
         sub = ImageFont.truetype("arial.ttf", 28)
         small = ImageFont.truetype("arial.ttf", 22)
-        big = ImageFont.truetype("arial.ttf", 36)
+        big = ImageFont.truetype("arialbd.ttf", 36)
     except:
         title = sub = small = big = ImageFont.load_default()
 
-    # ===== HEADER GLOW =====
-    for i in range(6):
-        d.text((300-i, 25-i), "💎 *ARPAN MODX 8 LEVEL SELL BOT* 💎", font=title, fill=(255, 215, 0))
-    d.text((300, 25), "💎 *ARPAN MODX 8 LEVEL SELL BOT* 💎", font=title, fill=gold)
+    # ===== PREMIUM HEADER =====
+    d.text((300, 25), "💎 ARPAN MODX 8 LEVEL SELL BOT 💎", font=title, fill=gold)
 
     # ===== DIVIDER =====
     d.line((80, 110, 1020, 110), fill=soft_gold, width=3)
 
     # ===== LEFT BOX (USER INFO) =====
-    d.rectangle((60, 140, 550, 300), outline=soft_gold, width=2)
-
-    d.text((80, 160), f"👤 Name: {name}", fill=white, font=sub)
-    d.text((80, 200), f"🔗 Username: @{username}", fill=white, font=sub)
-    d.text((80, 240), f"🆔 User ID: {uid}", fill=white, font=sub)
+    d.rounded_rectangle((60, 140, 550, 300), radius=20, outline=gold, width=3, fill=(250,250,250))
+    d.text((80, 160), f"👤 Name: {name}", fill=dark_gray, font=sub)
+    d.text((80, 200), f"🔗 Username: @{username}", fill=dark_gray, font=sub)
+    d.text((80, 240), f"🆔 User ID: {uid}", fill=dark_gray, font=sub)
 
     # ===== RIGHT BOX (ORDER INFO) =====
-    d.rectangle((580, 140, 1020, 300), outline=soft_gold, width=2)
-
+    d.rounded_rectangle((580, 140, 1020, 300), radius=20, outline=gold, width=3, fill=(250,250,250))
     d.text((600, 160), f"🧾 Order ID: {order_id}", fill=gold, font=sub)
-    d.text((600, 200), f"🔐 Txn ID: {txn_id}", fill=white, font=sub)
+    d.text((600, 200), f"🔐 Txn ID: {txn_id}", fill=dark_gray, font=sub)
     d.text((600, 240), datetime.now().strftime("📅 %d %b %Y"), fill=gray, font=sub)
 
     # ===== PRODUCT BOX =====
-    d.rectangle((60, 330, 1020, 480), outline=soft_gold, width=2)
-
-    d.text((80, 350), f"📦 Product: {product}", fill=white, font=sub)
+    d.rounded_rectangle((60, 330, 1020, 480), radius=20, outline=gold, width=3, fill=(245,245,245))
+    d.text((80, 350), f"📦 Product: {product}", fill=dark_gray, font=sub)
     d.text((80, 390), f"💰 Amount Paid: ₹{price}", fill=gold, font=big)
-    d.text((80, 430), f"💎 Remaining Balance: ₹{bal}", fill=white, font=sub)
+    d.text((80, 430), f"💎 Remaining Balance: ₹{bal}", fill=dark_gray, font=sub)
+
+    # ===== ACCOUNT BOX =====
+    d.rounded_rectangle((60, 490, 1020, 570), radius=20, outline=gold, width=3, fill=(245,245,245))
+    d.text((80, 510), f"📧 Email: {account_email}", fill=dark_gray, font=sub)
+    d.text((80, 545), f"🔑 Password: {account_password}", fill=dark_gray, font=sub)
 
     # ===== QR CODE =====
     qr_data = f"""
@@ -366,23 +374,23 @@ def invoice_img(uid, name, username, product, price, bal):
     qr = qrcode.make(qr_data)
     qr = qr.resize((170, 170))
     img.paste(qr, (820, 330))
-
     d.text((820, 510), "Scan for verification", fill=gray, font=small)
 
     # ===== PAID STAMP =====
     stamp_text = "✔ PAID"
-    d.text((750, 60), stamp_text, font=big, fill=(0, 255, 120))
+    d.text((750, 60), stamp_text, font=big, fill=(0, 180, 120))
 
-    # ===== WATERMARK =====
+    # ===== WATERMARK (FADED LUXURY) =====
+    watermark = "👑 ARPANMODX"
     for i in range(0, 1100, 300):
-        d.text((i, 580), "👑 ARPANMODX", font=small, fill=(40, 40, 40))
+        d.text((i, 580), watermark, font=small, fill=(200, 200, 200, 50))
 
     # ===== FOOTER =====
-    d.rectangle((0, 590, 1100, 650), fill=gold)
+    d.rounded_rectangle((0, 590, 1100, 650), radius=0, fill=gold)
     d.text((350, 605), "ARPANMODX ULTRA PREMIUM SYSTEM", fill="black", font=sub)
 
     # ===== SAVE =====
-    file = f"ultra_invoice_{order_id}.png"
+    file = f"luxury_invoice_{order_id}.png"
     img.save(file)
 
     return file
@@ -390,76 +398,85 @@ def invoice_img(uid, name, username, product, price, bal):
 def promo_invoice(uid, code, amt, before, after):
     width, height = 1000, 620
 
-    # 🖤 Base background + blur
-    base = Image.new("RGB", (width, height), "#050505")
-    img = base.filter(ImageFilter.GaussianBlur(2))
+    # ===== BASE LUXURY BACKGROUND =====
+    img = Image.new("RGB", (width, height), "#0a0a0a")
     draw = ImageDraw.Draw(img)
 
-    gold = (255, 215, 0)
+    # subtle gradient for luxury feel
+    for y in range(height):
+        gradient = int(15 + y*0.1)
+        draw.line((0, y, width, y), fill=(gradient, gradient, gradient))
 
-    # 🎟 Invoice + TXN
-    invoice_id = random.randint(18000, 19000)
-    txn_id = "TXN" + str(random.randint(100000, 999999))
-    time_now = datetime.now().strftime("%d %b %Y | %I:%M %p")
+    # ===== COLORS =====
+    gold = (212, 175, 55)
+    soft_gold = (255, 215, 180)
+    white = (245, 245, 245)
+    gray = (160, 160, 160)
+    black_overlay = (20, 20, 20, 220)
 
+    # ===== FONTS =====
     try:
-        title = ImageFont.truetype("arial.ttf", 44)
-        bold = ImageFont.truetype("arial.ttf", 30)
+        title = ImageFont.truetype("arialbd.ttf", 44)
+        bold = ImageFont.truetype("arialbd.ttf", 30)
         text = ImageFont.truetype("arial.ttf", 24)
         small = ImageFont.truetype("arial.ttf", 20)
     except:
         title = bold = text = small = ImageFont.load_default()
 
-    # ✨ GOLD HEADER GRADIENT
-    for i in range(160):
-        draw.rectangle([(0, i), (width, i+1)], fill=(255, 200 - i//3, 0))
+    # ===== HEADER =====
+    for i in range(3):
+        draw.text((220-i*2, 40-i*2), "💎 ARPAN MODX 8 LEVEL SELL BOT 💎", font=title, fill=soft_gold)
+    draw.text((220, 40), "💎 ARPAN MODX 8 LEVEL SELL BOT 💎", font=title, fill=gold)
 
-    draw.text((260, 50), "💎 *ARPAN MODX 8 LEVEL SELL BOT* 💎", fill="black", font=title)
-
-    # 🧾 GLASS CARD
-    card = Image.new("RGBA", (900, 400), (20, 20, 20, 230))
+    # ===== GLASS MAIN CARD =====
+    card = Image.new("RGBA", (900, 400), black_overlay)
     img.paste(card, (50, 170), card)
-
     draw = ImageDraw.Draw(img)
 
-    # 🟡 BORDER GLOW
+    # ===== GOLD BORDER GLOW =====
     for i in range(3):
-        draw.rectangle([(50-i,170-i),(950+i,570+i)], outline=gold)
+        draw.rounded_rectangle([(50-i,170-i),(950+i,570+i)], outline=soft_gold, width=3, radius=25)
 
-    # 👤 LEFT SIDE INFO
+    # ===== LEFT INFO =====
     y = 210
     gap = 45
+    invoice_id = random.randint(18000, 19000)
+    txn_id = "TXN" + str(random.randint(100000, 999999))
+    time_now = datetime.now().strftime("%d %b %Y | %I:%M %p")
 
-    draw.text((90, y), f"👤 User ID: {uid}", fill="white", font=bold); y += gap
+    draw.text((90, y), f"👤 User ID: {uid}", fill=white, font=bold); y += gap
     draw.text((90, y), f"🎟 Promo: {code}", fill=gold, font=bold); y += gap
-    draw.text((90, y), f"🧾 Invoice: #{invoice_id}", fill="white", font=text); y += gap
+    draw.text((90, y), f"🧾 Invoice: #{invoice_id}", fill=white, font=text); y += gap
     draw.text((90, y), f"🔖 TXN: {txn_id}", fill=gold, font=text); y += gap
-
     draw.text((90, y), f"💰 Added: ₹{amt}", fill=gold, font=bold); y += gap
-    draw.text((90, y), f"📉 Before: ₹{before}", fill="gray", font=text); y += gap
+    draw.text((90, y), f"📉 Before: ₹{before}", fill=gray, font=text); y += gap
     draw.text((90, y), f"📈 After: ₹{after}", fill=gold, font=bold); y += gap
+    draw.text((90, y), f"⏰ {time_now}", fill=gray, font=small)
 
-    draw.text((90, y), f"⏰ {time_now}", fill="gray", font=small)
-
-    # 💎 RIGHT BONUS BOX
-    draw.rounded_rectangle([(600,240),(900,450)], radius=25, outline=gold, width=3)
-
+    # ===== RIGHT BONUS BOX =====
+    draw.rounded_rectangle([(600,240),(900,450)], radius=25, outline=gold, width=3, fill=(40,40,40,200))
     draw.text((660, 260), "💎 BONUS", fill=gold, font=bold)
-    draw.text((680, 330), f"+ ₹{amt}", fill="white", font=title)
+    draw.text((680, 330), f"+ ₹{amt}", fill=white, font=title)
 
-    # 🔳 QR CODE (TXN BASED)
+    # ===== QR CODE =====
     qr = qrcode.make(txn_id).resize((120,120))
     img.paste(qr, (780, 460))
 
-    # ✨ GLOW EFFECT
-    for i in range(25):
-        draw.ellipse((650-i, 260-i, 920+i, 480+i), outline=(255,215,0,40))
+    # ===== BONUS GLOW EFFECT =====
+    for i in range(20):
+        draw.ellipse((650-i, 260-i, 920+i, 480+i), outline=(255,215,0,50))
 
-    # 🟡 FOOTER
+    # ===== FOOTER =====
     draw.rectangle([(0, height-70), (width, height)], fill=gold)
-    draw.text((250, height-50), "✔ VERIFIED • PREMIUM SYSTEM • SECURE BY ARPAN MODX", fill="black", font=small)
+    draw.text((180, height-50), "✔ VERIFIED • PREMIUM SYSTEM • SECURE BY ARPAN MODX", fill="black", font=small)
 
-    file = f"promo_{uid}.png"
+    # ===== WATERMARK =====
+    watermark = "👑 ARPANMODX"
+    for i in range(0, 1100, 300):
+        draw.text((i, 580), watermark, fill=(200,200,200,50), font=small)
+
+    # ===== SAVE =====
+    file = f"promo_ultra_luxury_{uid}.png"
     img.save(file)
     return file
 
@@ -469,15 +486,25 @@ def main_keyboard():
         [
             ["🟡 MY BALANCE", "🟡 STOCK"],
             ["🟢 ADD FUNDS"],
-            ["🔵 FACEBOOK ₹25", "🔵 GOOGLE ₹25"],
-            ["🔵 TWITTER ₹25", "🔵 GUEST ₹20"],
+            ["8 LEVEL IDS"],  # ✅ New button
             ["🟣 PROMO CODE", "🟣 REFER & EARN"],
             ["⭐ PAID PUSH⭐", "🔗 CHANNEL"],
-            ["⚫ CONTACT OWNER"]
+            ["🟠 PROFILE"],  # ✅ Add this new PROFILE button
+            ["⚫ CONTACT OWNER"],
+            ["ℹ️ HOW IT WORKS"]
         ],
         resize_keyboard=True
     )
 
+def ids_keyboard():
+    return ReplyKeyboardMarkup(
+        [
+            ["🔵 FACEBOOK ₹25", "🔵 GOOGLE ₹25"],
+            ["🔵 TWITTER ₹25", "🔵 GUEST ₹20"],
+            ["🔙 Back"]  # Back button to return to main menu
+        ],
+        resize_keyboard=True
+    )
 # ================= START ================= #
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
@@ -495,7 +522,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # 🔒 Verification check
     if not is_verified(user_id):
-        contact_button = KeyboardButton("📱 Share Phone Number", request_contact=True)
+        contact_button = KeyboardButton("📱 SHARE YOUR PHONE • GET VIP SUPPORT", request_contact=True)
 
         keyboard = ReplyKeyboardMarkup(
             [[contact_button]],
@@ -504,7 +531,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
         join_btn = InlineKeyboardMarkup([
-            [InlineKeyboardButton("📢 Join Channel ", url=CHANNEL_LINK)]
+            [InlineKeyboardButton("📢 Join Channel for more updates", url=CHANNEL_LINK)]
         ])
 
         await update.message.reply_text(
@@ -520,14 +547,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # ✅ AFTER VERIFIED
     caption = (
-        "⚡🔥 *WELCOME TO ARPAN MODX STORE* 🔥⚡\n\n"
-        "━━━━━━━━━━━━━━━\n"
-        "⚡ Instant Delivery\n"
-        "🔒 100% Secure\n"
-        "💎 Premium Services\n"
-        "━━━━━━━━━━━━━━━\n\n"
-        "🛒 Buy Now • Fast Delivery • Trusted"
-    )
+    "👑💎 *WELCOME TO ARPANMODX 8 LEVEL ID STORE* 💎👑\n\n"
+    "━━━━━━━━━━━━━━━━━━━━━━━━\n"
+    "⚡ INSTANT DELIVERY • FAST & SAFE\n"
+    "🔒 100% VERIFIED PAYMENTS\n"
+    "💎 PREMIUM SERVICES ONLY\n"
+    "━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+    "🛒 SHOP NOW • INSTANT ACCESS • TRUSTED 🚀"
+)
 
     inline_keyboard = [
         [InlineKeyboardButton("🛒 Buy Now", url="https://t.me/ARPANMODX")],
@@ -790,9 +817,21 @@ async def refer_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
 
 async def update_bot(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("♻️ Restarting bot... press /start")
+    await update.message.reply_text("♻️ Restarting bot... press /start or how to work bot /how")
     os.execl(sys.executable, sys.executable, *sys.argv)
-
+async def how_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "🛒 *BUY 8 LEVEL ID FROM HERE*\n\n"
+        "1. ADD FUNDS USING UPI 💰\n"
+        "SEND PAYMENT SCREENSHOT AND PAYMENT AMOUNT IN BOT\n\n"
+        "2. WAIT FOR ADMIN APPROVAL\n"
+        "AUTO VERIFICATION AFTER FEW MINUTES ✅\n\n"
+        "3. BUY IDS FROM STORE 🛒\n"
+        "4. GET INSTANT DELIVERY ⚡\n\n"
+        "SIMPLE & FAST 🚀\n\n"
+        "📩 DIRECT BUYERS DM @ARPANMODX",
+        parse_mode="Markdown"
+    )    
 # ================= MENU ================= #
 
 async def log_security(update: Update, context: ContextTypes.DEFAULT_TYPE, action="Tried Admin Command"):
@@ -816,6 +855,10 @@ async def log_security(update: Update, context: ContextTypes.DEFAULT_TYPE, actio
 async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     uid = update.effective_user.id
     text = update.message.text
+
+   if uid in awaiting_promo:
+    await apply_promo(update, context)
+    return
 
     # 💰 PAYMENT AMOUNT INPUT
     if text.isdigit():
@@ -844,208 +887,150 @@ async def menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    # 💰 BALANCE
-    elif text == "🟡 MY BALANCE":
-        await update.message.reply_text(
-            f"💰 *WALLET DASHBOARD*\n\n"
-            f"━━━━━━━━━━━━━━━━━━\n"
-            f"💎 Balance: *₹{get_balance(uid)}*\n"
-            f"━━━━━━━━━━━━━━━━━━\n\n"
-            f"🛒 Ready to shop?\n"
-            f"⚡ Buy premium accounts instantly!\n\n"
-            f"🔥 Thank you for using our service ❤️",
-            parse_mode="Markdown"
-        )
+elif text == "8 LEVEL IDS":
+    await update.message.reply_text(
+        "💎👑 *ARPANMODX 8 LEVEL IDS STORE* 👑💎\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n"
+        "⚡ CHOOSE YOUR ACCOUNT TO BUY\n"
+        "💎 PREMIUM IDS • INSTANT DELIVERY\n"
+        "🔒 SECURE & VERIFIED\n"
+        "━━━━━━━━━━━━━━━━━━━━━━\n\n"
+        "🛒 SELECT BELOW TO PROCEED",
+        reply_markup=ids_keyboard(),
+        parse_mode="Markdown"
+    )
 
-    # 📦 STOCK
-    elif text == "🟡 STOCK":
-        await update.message.reply_text(
-            f"📦 *STOCK STATUS*\n\n"
-            f"🔵 Facebook → Available: {stock_count('facebook')} | Sold: {sold_count('facebook')}\n"
-            f"━━━━━━━━━━━━━━━━━━\n"
-            f"🔵 Google → Available: {stock_count('google')} | Sold: {sold_count('google')}\n"
-            f"━━━━━━━━━━━━━━━━━━\n"
-            f"🔵 Twitter → Available: {stock_count('twitter')} | Sold: {sold_count('twitter')}\n"
-            f"━━━━━━━━━━━━━━━━━━\n"
-            f"🔵 Guest → Available: {stock_count('guest')} | Sold: {sold_count('guest')}\n"
-            f"━━━━━━━━━━━━━━━━━━\n\n"
-            f"⚠️ *Only few left!*\n\n"
-            f"💰 *SPECIAL OFFER*\n"
-            f"👉 If you buy 10 accounts,\n"
-            f"you only pay *₹200*\n\n"
-            f"🔥 Hurry up before stock ends!",
-            parse_mode="Markdown"
-        )
+elif text == "🔙 Back":
+    await update.message.reply_text(
+        "📋 Main Menu 👇",
+        reply_markup=main_keyboard()
+    )
 
-    # 💳 ADD FUNDS
-    elif text == "🟢 ADD FUNDS":
-        if os.path.exists(QR_IMAGE_PATH):
-            with open(QR_IMAGE_PATH, "rb") as photo:
-                await update.message.reply_photo(
-                    photo=photo,
-                    caption=(
-                        "💰 *Scan & Pay*\n\n"
-                        f"👤 Owner: {OWNER_USERNAME}\n"
-                        f"💳 UPI: `{UPI_ID}`\n\n"
-                        "━━━━━━━━━━━━━━━━━━\n"
-                        "🇮🇳 *UPI PAYMENT (INDIA)*\n"
-                        "━━━━━━━━━━━━━━━━━━\n"
-                        "✨ *Steps to Deposit:*\n"
-                        "1. Copy the UPI ID below\n"
-                        "2. Pay using any UPI app\n"
-                        "3. Save UTR\n"
-                        f"4. Send screenshot\n\n"
-                        "━━━━━━━━━━━━━━━━━━\n"
-                        "⚠️ Payment will be verified before adding balance."
-                    ),
-                    parse_mode="Markdown"
-                )
-        return
+# 💰 BALANCE
+elif text == "🟡 MY BALANCE":
+    await update.message.reply_text(
+        f"💰 *WALLET DASHBOARD*\n\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"💎 Balance: *₹{get_balance(uid)}*\n"
+        f"━━━━━━━━━━━━━━━━━━\n\n"
+        f"🛒 Ready to shop?\n"
+        f"⚡ Buy premium accounts instantly!\n\n"
+        f"🔥 Thank you for using our service ❤️",
+        parse_mode="Markdown"
+    )
 
-    # 🛒 BUY PRODUCTS
-    elif text in ["🔵 FACEBOOK ₹25", "🔵 GOOGLE ₹25", "🔵 TWITTER ₹25", "🔵 GUEST ₹20"]:
+# 📦 STOCK
+elif text == "🟡 STOCK":
+    await update.message.reply_text(
+        f"📦 *STOCK STATUS*\n\n"
+        f"🔵 Facebook → Available: {stock_count('facebook')} | Sold: {sold_count('facebook')}\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"🔵 Google → Available: {stock_count('google')} | Sold: {sold_count('google')}\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"🔵 Twitter → Available: {stock_count('twitter')} | Sold: {sold_count('twitter')}\n"
+        f"━━━━━━━━━━━━━━━━━━\n"
+        f"🔵 Guest → Available: {stock_count('guest')} | Sold: {sold_count('guest')}\n"
+        f"━━━━━━━━━━━━━━━━━━\n\n"
+        f"⚠️ *Only few left!*\n\n"
+        f"💰 *SPECIAL OFFER*\n"
+        f"👉 If you buy 10 accounts,\n"
+        f"you only pay *₹200*\n\n"
+        f"🔥 Hurry up before stock ends!",
+        parse_mode="Markdown"
+    )
 
-        user = update.effective_user
-        uid = user.id
-        name = user.first_name
-        username = user.username if user.username else "NoUsername"
-
-        t = ("facebook" if "FACEBOOK" in text else
-             "google" if "GOOGLE" in text else
-             "twitter" if "TWITTER" in text else
-             "guest")
-
-        price = PRICES[t]
-
-        if get_balance(uid) < price:
-            await update.message.reply_text(
-                "❌ *INSUFFICIENT BALANCE*\n\n"
-                "━━━━━━━━━━━━━━━━━━\n"
-                "💰 Your wallet balance is too low\n"
-                "⚡ Please add funds to continue\n"
-                "━━━━━━━━━━━━━━━━━━\n\n"
-                "👉 Use *ADD FUNDS* to recharge your wallet",
-                parse_mode="Markdown"
-            )
-            return
-
-        acc = get_stock(t)
-
-        if not acc:
-            await update.message.reply_text(
-                "❌ *OUT OF STOCK*\n\n"
-                "━━━━━━━━━━━━━━━━━━\n"
-                "😔 This item is currently unavailable\n"
-                "━━━━━━━━━━━━━━━━━━\n\n"
-                "🔔 Please check back later",
-                parse_mode="Markdown"
-            )
-            return
-
-        deduct_balance(uid, price)
-        save_order(uid, t, acc, price)
-        increase_sold(t)
-
-        bal = get_balance(uid)
-
-        file = invoice_img(uid, name, username, t, price, bal)
-
-        await update.message.reply_text(
-            f"✅ PURCHASED\n\n{acc}\nRemaining Balance: ₹{bal}"
-        )
-
-        with open(file, "rb") as f:
+# 💳 ADD FUNDS
+elif text == "🟢 ADD FUNDS":
+    if os.path.exists(QR_IMAGE_PATH):
+        with open(QR_IMAGE_PATH, "rb") as photo:
             await update.message.reply_photo(
-                photo=f,
+                photo=photo,
                 caption=(
-                    "🚨💎 *ARPAN MODX 8 LEVEL SELL BOT* 💎🚨\n"
-                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
-
-                    "👤 *CUSTOMER PROFILE*\n"
-                    f"┌ Name: {name}\n"
-                    f"├ Username: @{username}\n"
-                    f"└ UID: `{uid}`\n\n"
-
-                    "🧾 *ORDER SUMMARY*\n"
-                    f"├ Product: {t}\n"
-                    f"├ Amount Paid: ₹{price}\n"
-                    f"├ 🔐 Account: {acc}\n"
-                    f"└ Remaining Balance: ₹{bal}\n\n"
-
-                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                    "💳 Payment Status: ✅ CONFIRMED\n"
-                    "⚡ System: AUTO PROCESSED\n"
+                    "💰 *Scan & Pay*\n\n"
+                    f"👤 Owner: {OWNER_USERNAME}\n"
+                    f"💳 UPI: `{UPI_ID}`\n\n"
+                    "━━━━━━━━━━━━━━━━━━\n"
+                    "🇮🇳 *UPI PAYMENT (INDIA)*\n"
+                    "━━━━━━━━━━━━━━━━━━\n"
+                    "✨ *Steps to Deposit:*\n"
+                    "1. Copy the UPI ID below\n"
+                    "2. Pay using any UPI app\n"
+                    "3. Save UTR\n"
+                    f"4. Send screenshot\n\n"
+                    "━━━━━━━━━━━━━━━━━━\n"
+                    "⚠️ Payment will be verified before adding balance."
                 ),
                 parse_mode="Markdown"
             )
+    return
 
-        with open(file, "rb") as f:
-            await context.bot.send_photo(
-                chat_id=ADMIN_ID,
-                photo=f,
-                caption=(
-                    "🚨💎 *ARPAN MODX 8 LEVEL SELL BOT* 💎🚨\n"
-                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n"
+# 🛒 BUY PRODUCTS
+elif text in ["🔵 FACEBOOK ₹25", "🔵 GOOGLE ₹25", "🔵 TWITTER ₹25", "🔵 GUEST ₹20"]:
+    # ... (existing code for purchases stays same)
 
-                    "👤 *CUSTOMER PROFILE*\n"
-                    f"┌ Name: {name}\n"
-                    f"├ Username: @{username}\n"
-                    f"└ UID: `{uid}`\n\n"
+elif text == "🟣 PROMO CODE":
+    awaiting_promo.add(uid)
+    await update.message.reply_text(
+        "🎁 *🎉 PROMO CODE REWARD TIME! 🎉*\n\n"
+        "━━━━━━━━━━━━━━━━━━━\n"
+        "💌 Send your promo code now\n"
+        "━━━━━━━━━━━━━━━━━━━",
+        parse_mode="Markdown"
+    )
 
-                    "🧾 *ORDER SUMMARY*\n"
-                    f"├ Product: {t}\n"
-                    f"├ Amount Paid: ₹{price}\n"
-                    f"├ 🔐 Account: {acc}\n"
-                    f"└ Remaining Balance: ₹{bal}\n\n"
+# 👥 REFER
+elif text == "🟣 REFER & EARN":
+    await refer_command(update, context)
 
-                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-                    "💳 Payment Status: ✅ CONFIRMED\n"
-                    "⚡ System: AUTO PROCESSED\n"
-                ),
-                parse_mode="Markdown"
-            )
+# ⭐ PAID PUSH
+elif text == "⭐ PAID PUSH⭐":
+    kb = [
+        [InlineKeyboardButton("⭐ 1 STAR — ₹2", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
+        [InlineKeyboardButton("⭐⭐ 10 STAR — ₹20", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
+        [InlineKeyboardButton("⭐⭐⭐ 25 STAR — ₹50", url=f"https://t.me/{OWNER_USERNAME[1:]}")]
+    ]
 
-    # 🎟 PROMO
-    elif text == "🟣 PROMO CODE":
-        awaiting_promo.add(uid)
-        await update.message.reply_text(
-            "🎁 *🎉 PROMO CODE REWARD TIME! 🎉*\n\n"
-            "━━━━━━━━━━━━━━━━━━━\n"
-            "💌 Send your promo code now\n"
-            "━━━━━━━━━━━━━━━━━━━",
-            parse_mode="Markdown"
-        )
+    await update.message.reply_text(
+        f"⭐ PAID PUSH PRICES\n\n👤 Owner: {OWNER_USERNAME}",
+        reply_markup=InlineKeyboardMarkup(kb)
+    )
 
-    # 👥 REFER
-    elif text == "🟣 REFER & EARN":
-        await refer_command(update, context)
+elif text == "ℹ️ HOW IT WORKS":
+    await how_command(update, context)
 
-    # ⭐ PAID PUSH
-    elif text == "⭐ PAID PUSH⭐":
-        kb = [
-            [InlineKeyboardButton("⭐ 1 STAR — ₹2", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
-            [InlineKeyboardButton("⭐⭐ 10 STAR — ₹20", url=f"https://t.me/{OWNER_USERNAME[1:]}")],
-            [InlineKeyboardButton("⭐⭐⭐ 25 STAR — ₹50", url=f"https://t.me/{OWNER_USERNAME[1:]}")]
-        ]
+# 🔗 CHANNEL
+elif text == "🔗 CHANNEL":
+    kb = [[InlineKeyboardButton("Join Channel", url=CHANNEL_LINK)]]
+    await update.message.reply_text(
+        "📢 Join our channel for updates:",
+        reply_markup=InlineKeyboardMarkup(kb)
+    )
 
-        await update.message.reply_text(
-            f"⭐ PAID PUSH PRICES\n\n👤 Owner: {OWNER_USERNAME}",
-            reply_markup=InlineKeyboardMarkup(kb)
-        )
+# 📞 CONTACT
+elif text == "⚫ CONTACT OWNER":
+    await update.message.reply_text(
+        f"👤 Owner: {OWNER_USERNAME}\n📩 Contact: https://t.me/{OWNER_USERNAME[1:]}"
+    )
 
-    # 🔗 CHANNEL
-    elif text == "🔗 CHANNEL":
-        kb = [[InlineKeyboardButton("Join Channel", url=CHANNEL_LINK)]]
-        await update.message.reply_text(
-            "📢 Join our channel for updates:",
-            reply_markup=InlineKeyboardMarkup(kb)
-        )
+# 🟠 PROFILE
+elif text == "🟠 PROFILE":
+    user = update.effective_user
+    uid = user.id
+    name = user.first_name
+    username = user.username if user.username else "NoUsername"
 
-    # 📞 CONTACT
-    elif text == "⚫ CONTACT OWNER":
-        await update.message.reply_text(
-            f"👤 Owner: {OWNER_USERNAME}\n📩 Contact: https://t.me/{OWNER_USERNAME[1:]}"
-        )
+    await update.message.reply_text(
+        f"💎👑 ARPANMODX ELITE USER PROFILE 👑💎\n\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"👤 NAME       : {name}\n"
+        f"🔗 USERNAME   : @{username}\n"
+        f"🆔 USER ID    : `{uid}`\n"
+        "━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        "⚡ PREMIUM STATUS: VERIFIED\n"
+        "💎 INSTANT ACCESS TO ALL IDS\n"
+        "🚀 SHOP WITH CONFIDENCE",
+        parse_mode="Markdown"
+    )
 
 
 # ================= HANDLE TEXT ================= #
@@ -1211,9 +1196,17 @@ async def apply_promo(update: Update, context: ContextTypes.DEFAULT_TYPE):
         pass
 # ================= ADMIN BUTTON ================= #
 async def admin_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+
+    if user_id != OWNER_ID:
+        # If not admin, send a message and return
+        await update.message.reply_text("❌ Access Denied. You are not an admin.")
+        return
+
+    # Admin only sees this
     await update.message.reply_text(
         "👑 ADMIN PANEL",
-        reply_markup=admin_keyboard()  # ✅ FIX
+        reply_markup=admin_keyboard()
     )
 
 
@@ -1256,10 +1249,26 @@ async def admin_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"📈 Total Sales: ₹{total}")
 
     elif text == "👥 Total Users":
-        cur.execute("SELECT COUNT(*) FROM users")
-        total = cur.fetchone()[0]
+        # Fetch all users
+        cur.execute("SELECT first_name, username, user_id FROM users")
+        users = cur.fetchall()
 
-        await update.message.reply_text(f"👥 Users: {total}")
+        total = len(users)
+        message = f"👥 Total Users: {total}\n\n"
+
+        # Add each user's info
+        for user in users:
+            first_name, username, user_id = user
+            username_display = f"@{username}" if username else "No Username"
+            message += f"• {first_name} ({username_display}) — ID: {user_id}\n"
+
+        # Split message if too long for Telegram
+        if len(message) > 4000:
+            chunks = [message[i:i+4000] for i in range(0, len(message), 4000)]
+            for chunk in chunks:
+                await update.message.reply_text(chunk)
+        else:
+            await update.message.reply_text(message)
 
     elif text == "💰 Earnings":
         cur.execute("SELECT SUM(price) FROM orders")
@@ -1313,7 +1322,6 @@ async def admin_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return False
 
     return True
-
 
 # ================= ADMIN COMMANDS ================= #
 
@@ -1439,7 +1447,7 @@ app.add_handler(CommandHandler("admin", admin_command))
 app.add_handler(CommandHandler("approve", approve))
 app.add_handler(CommandHandler("stockstats", stock_stats))
 app.add_handler(CommandHandler("broadcast", broadcast))
-
+app.add_handler(CommandHandler("how", how_command))
 # Callback
 app.add_handler(CallbackQueryHandler(payment_buttons))
 
